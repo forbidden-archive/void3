@@ -65,6 +65,11 @@ export default function Home() {
   const [selectedId, setSelectedId] = useState("001");
   const [query, setQuery] = useState("");
   const [view, setView] = useState<ViewMode>("synapse");
+
+  const [camera, setCamera] = useState({ x: 0, y: 0, scale: 1 });
+  const [dragging, setDragging] = useState(false);
+  const [lastMouse, setLastMouse] = useState({ x: 0, y: 0 });
+
   const [form, setForm] = useState({
     title: "",
     date: "",
@@ -75,12 +80,12 @@ export default function Home() {
   });
 
   useEffect(() => {
-    const saved = localStorage.getItem("void-nodes-v2");
+    const saved = localStorage.getItem("void-nodes-v3");
     if (saved) setNodes(JSON.parse(saved));
   }, []);
 
   useEffect(() => {
-    localStorage.setItem("void-nodes-v2", JSON.stringify(nodes));
+    localStorage.setItem("void-nodes-v3", JSON.stringify(nodes));
   }, [nodes]);
 
   const filteredNodes = useMemo(() => {
@@ -101,7 +106,7 @@ export default function Home() {
     if (!form.title.trim()) return;
 
     const angle = Math.random() * Math.PI * 2;
-    const radius = 18 + Math.random() * 27;
+    const radius = 18 + Math.random() * 30;
 
     const newNode: VoidNode = {
       id: String(Date.now()),
@@ -143,7 +148,46 @@ export default function Home() {
   const resetNodes = () => {
     setNodes(initialNodes);
     setSelectedId("001");
-    localStorage.removeItem("void-nodes-v2");
+    localStorage.removeItem("void-nodes-v3");
+  };
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    if (view !== "synapse") return;
+    setDragging(true);
+    setLastMouse({ x: e.clientX, y: e.clientY });
+  };
+
+  const onPointerMove = (e: React.PointerEvent) => {
+    if (!dragging) return;
+
+    const dx = e.clientX - lastMouse.x;
+    const dy = e.clientY - lastMouse.y;
+
+    setCamera((prev) => ({
+      ...prev,
+      x: prev.x + dx,
+      y: prev.y + dy
+    }));
+
+    setLastMouse({ x: e.clientX, y: e.clientY });
+  };
+
+  const onPointerUp = () => {
+    setDragging(false);
+  };
+
+  const onWheel = (e: React.WheelEvent) => {
+    if (view !== "synapse") return;
+
+    const nextScale = Math.min(
+      2.3,
+      Math.max(0.55, camera.scale - e.deltaY * 0.001)
+    );
+
+    setCamera((prev) => ({
+      ...prev,
+      scale: nextScale
+    }));
   };
 
   return (
@@ -224,18 +268,34 @@ export default function Home() {
         <button className="ghost" onClick={resetNodes}>
           RESET
         </button>
+
+        <div className="hint">
+          SYNAPSE VIEW: drag to move / wheel to zoom
+        </div>
       </aside>
 
-      <section className="stage">
+      <section
+        className={`stage ${dragging ? "dragging" : ""}`}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerLeave={onPointerUp}
+        onWheel={onWheel}
+      >
         <div className="noise" />
         <div className="grain" />
 
         {view === "synapse" && (
-          <div className="synapseView">
-            <svg className="synapseSvg">
+          <div
+            className="synapseWorld"
+            style={{
+              transform: `translate(calc(-50% + ${camera.x}px), calc(-50% + ${camera.y}px)) scale(${camera.scale})`
+            }}
+          >
+            <svg className="synapseSvg" viewBox="0 0 100 100">
               <defs>
                 <filter id="glow">
-                  <feGaussianBlur stdDeviation="3" result="blur" />
+                  <feGaussianBlur stdDeviation="1.4" result="blur" />
                   <feMerge>
                     <feMergeNode in="blur" />
                     <feMergeNode in="SourceGraphic" />
@@ -246,10 +306,10 @@ export default function Home() {
               {filteredNodes.map((node, index) => (
                 <path
                   key={`${node.id}-core`}
-                  d={`M 50 50 C ${50 + (node.x - 50) * 0.35} ${
-                    50 + Math.sin(index) * 18
-                  }, ${50 + (node.x - 50) * 0.7} ${
-                    node.y + Math.cos(index) * 10
+                  d={`M 50 50 C ${50 + (node.x - 50) * 0.28} ${
+                    50 + Math.sin(index) * 14
+                  }, ${50 + (node.x - 50) * 0.72} ${
+                    node.y + Math.cos(index) * 8
                   }, ${node.x} ${node.y}`}
                   pathLength="100"
                 />
@@ -262,8 +322,8 @@ export default function Home() {
                     key={`${node.id}-chain`}
                     className="secondary"
                     d={`M ${node.x} ${node.y} C ${(node.x + next.x) / 2} ${
-                      node.y - 18
-                    }, ${(node.x + next.x) / 2} ${next.y + 18}, ${next.x} ${
+                      node.y - 12
+                    }, ${(node.x + next.x) / 2} ${next.y + 12}, ${next.x} ${
                       next.y
                     }`}
                     pathLength="100"
@@ -273,7 +333,12 @@ export default function Home() {
             </svg>
 
             <button className="core" onClick={() => setSelectedId("001")}>
-              <span>VOID</span>
+              <div className="particleCloud coreCloud">
+                {Array.from({ length: 26 }).map((_, i) => (
+                  <span key={i} style={{ "--i": i } as React.CSSProperties} />
+                ))}
+              </div>
+              <b>VOID</b>
               <small>CORE</small>
             </button>
 
@@ -286,15 +351,27 @@ export default function Home() {
                 style={{
                   left: `${node.x}%`,
                   top: `${node.y}%`,
-                  animationDelay: `${index * -0.6}s`
+                  animationDelay: `${index * -0.45}s`
                 }}
-                onClick={() => setSelectedId(node.id)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedId(node.id);
+                }}
               >
+                <div className="particleCloud">
+                  {Array.from({ length: node.image ? 34 : 24 }).map((_, i) => (
+                    <span
+                      key={i}
+                      style={{ "--i": i } as React.CSSProperties}
+                    />
+                  ))}
+                </div>
+
                 {node.image && (
                   <img className="nodeImage" src={node.image} alt="" />
                 )}
-                <i />
-                <span>{node.date}</span>
+
+                <em>{node.date}</em>
                 <strong>{node.title}</strong>
               </button>
             ))}
