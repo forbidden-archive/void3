@@ -12,7 +12,7 @@ type Entry = {
   photo?: string;
 };
 
-const STORAGE_KEY = "void-clean-archive-v3";
+const STORAGE_KEY = "void-clean-archive-v4";
 
 const initialEntries: Entry[] = [
   {
@@ -41,7 +41,8 @@ const initialEntries: Entry[] = [
 export default function Home() {
   const [entries, setEntries] = useState<Entry[]>(initialEntries);
   const [selectedId, setSelectedId] = useState("");
-  const [openAdd, setOpenAdd] = useState(false);
+  const [openForm, setOpenForm] = useState(false);
+  const [mode, setMode] = useState<"add" | "edit">("add");
   const [query, setQuery] = useState("");
 
   const [form, setForm] = useState({
@@ -101,9 +102,7 @@ export default function Home() {
           }
 
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-          const dataUrl = canvas.toDataURL("image/jpeg", 0.72);
-          resolve(dataUrl);
+          resolve(canvas.toDataURL("image/jpeg", 0.72));
         };
 
         img.onerror = reject;
@@ -124,35 +123,81 @@ export default function Home() {
     try {
       const resized = await resizeImage(file);
       setForm((prev) => ({ ...prev, [key]: resized }));
-      alert(`${key} loaded`);
     } catch {
       alert("画像の読み込みに失敗しました");
     }
   };
 
-  const addEntry = () => {
+  const openAddForm = () => {
+    setMode("add");
+    setForm({
+      date: "",
+      title: "",
+      text: "",
+      tag: "",
+      drawing: "",
+      photo: ""
+    });
+    setOpenForm(true);
+  };
+
+  const openEditForm = () => {
+    if (!selected) return;
+
+    setMode("edit");
+    setForm({
+      date: selected.date,
+      title: selected.title,
+      text: selected.text,
+      tag: selected.tag,
+      drawing: selected.drawing || "",
+      photo: selected.photo || ""
+    });
+    setOpenForm(true);
+  };
+
+  const submitForm = () => {
     if (!form.title.trim()) {
       alert("titleを入れて");
       return;
     }
 
-    const newEntry: Entry = {
-      id: String(Date.now()),
-      date: form.date || new Date().toISOString().slice(0, 10),
-      title: form.title,
-      text: form.text,
-      tag: form.tag || "untagged",
-      drawing: form.drawing,
-      photo: form.photo
-    };
-
-    const nextEntries = [...entries, newEntry];
-
     try {
-      saveEntries(nextEntries);
+      if (mode === "add") {
+        const newEntry: Entry = {
+          id: String(Date.now()),
+          date: form.date || new Date().toISOString().slice(0, 10),
+          title: form.title,
+          text: form.text,
+          tag: form.tag || "untagged",
+          drawing: form.drawing,
+          photo: form.photo
+        };
 
-      setSelectedId(newEntry.id);
-      setOpenAdd(false);
+        const nextEntries = [...entries, newEntry];
+        saveEntries(nextEntries);
+        setSelectedId(newEntry.id);
+      } else {
+        if (!selected) return;
+
+        const nextEntries = entries.map((entry) =>
+          entry.id === selected.id
+            ? {
+                ...entry,
+                date: form.date || entry.date,
+                title: form.title,
+                text: form.text,
+                tag: form.tag || "untagged",
+                drawing: form.drawing,
+                photo: form.photo
+              }
+            : entry
+        );
+
+        saveEntries(nextEntries);
+      }
+
+      setOpenForm(false);
       setForm({
         date: "",
         title: "",
@@ -161,29 +206,37 @@ export default function Home() {
         drawing: "",
         photo: ""
       });
-
-      alert("saved");
     } catch (error) {
       console.error(error);
-      alert(
-        "保存できません。画像がまだ大きい可能性があります。画像なし、または小さい画像で試して。"
-      );
+      alert("保存できません。画像サイズが大きすぎる可能性があります。");
     }
+  };
+
+  const deleteSelected = () => {
+    if (!selected) return;
+    const nextEntries = entries.filter((entry) => entry.id !== selected.id);
+    saveEntries(nextEntries);
+    setSelectedId("");
+    setOpenForm(false);
   };
 
   const reset = () => {
     localStorage.removeItem(STORAGE_KEY);
     setEntries(initialEntries);
     setSelectedId("");
-    alert("reset");
+    setOpenForm(false);
   };
 
   return (
-    <main className="page">
+    <main className={selected ? "page detailMode" : "page"}>
       <header className="top">
         <button>contact us</button>
         <div className="logo">void</div>
-        <button onClick={() => setOpenAdd(true)}>add</button>
+        {selected ? (
+          <button onClick={openEditForm}>edit</button>
+        ) : (
+          <button onClick={openAddForm}>add</button>
+        )}
       </header>
 
       {!selected && (
@@ -264,12 +317,14 @@ export default function Home() {
             <p>{selected.text}</p>
             <span>#{selected.tag}</span>
           </article>
+
+          <div className="bottomSpace" />
         </section>
       )}
 
-      {openAdd && (
+      {openForm && (
         <section className="add">
-          <button className="addClose" onClick={() => setOpenAdd(false)}>
+          <button className="addClose" onClick={() => setOpenForm(false)}>
             close
           </button>
 
@@ -318,9 +373,15 @@ export default function Home() {
           {form.drawing && <p className="loaded">drawing loaded</p>}
           {form.photo && <p className="loaded">photo loaded</p>}
 
-          <button className="save" onClick={addEntry}>
-            save
+          <button className="save" onClick={submitForm}>
+            {mode === "add" ? "save" : "update"}
           </button>
+
+          {mode === "edit" && (
+            <button className="delete" onClick={deleteSelected}>
+              delete
+            </button>
+          )}
 
           <button className="reset" onClick={reset}>
             reset
