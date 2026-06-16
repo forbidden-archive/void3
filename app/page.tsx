@@ -405,19 +405,21 @@ export default function Home() {
     const sx = e.clientX;
     const sy = e.clientY;
 
-    let closest: { id: string; d: number } | null = null;
+    let closestId = "";
+let closestDistance = Infinity;
 
-    nodesRef.current.forEach((node) => {
-      const px = window.innerWidth / 2 + cam.x + node.x * cam.scale;
-      const py = window.innerHeight / 2 + cam.y + node.y * cam.scale;
-      const d = Math.hypot(px - sx, py - sy);
+nodesRef.current.forEach((node) => {
+  const px = window.innerWidth / 2 + cam.x + node.x * cam.scale;
+  const py = window.innerHeight / 2 + cam.y + node.y * cam.scale;
+  const d = Math.hypot(px - sx, py - sy);
 
-      if (d < 90 * cam.scale && (!closest || d < closest.d)) {
-        closest = { id: node.id, d };
-      }
-    });
+  if (d < 90 * cam.scale && d < closestDistance) {
+    closestId = node.id;
+    closestDistance = d;
+  }
+});
 
-    if (closest) setSelectedId(closest.id);
+if (closestId) setSelectedId(closestId);
   };
 
   return (
