@@ -188,15 +188,15 @@ export default function Home() {
   useEffect(() => {
     nodes.forEach((node) => {
       if (!particlesRef.current[node.id]) {
-        const count = node.id === "001" ? 420 : node.image ? 260 : 190;
+        const count = node.id === "001" ? 900 : node.image ? 560 : 420;
         particlesRef.current[node.id] = Array.from({ length: count }).map(() => {
           const angle = Math.random() * Math.PI * 2;
-          const radius = Math.pow(Math.random(), 0.55) * (node.id === "001" ? 105 : 78);
+          const radius = Math.pow(Math.random(), 0.42) * (node.id === "001" ? 130 : 96);
           return {
             ox: Math.cos(angle) * radius,
             oy: Math.sin(angle) * radius * (0.72 + Math.random() * 0.5),
             a: Math.random() * Math.PI * 2,
-            r: 0.7 + Math.random() * 2.2,
+           r: 0.25 + Math.random() * 1.05,
             s: 0.3 + Math.random() * 1.5
           };
         });
@@ -252,9 +252,9 @@ export default function Home() {
 
       ctx.globalCompositeOperation = "lighter";
 
-      const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, node.id === "001" ? 150 : 105);
-      gradient.addColorStop(0, `${color}66`);
-      gradient.addColorStop(0.42, `${color}22`);
+      const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, node.id === "001" ? 170 : 122);
+      gradient.addColorStop(0, `${color}38`);
+gradient.addColorStop(0.46, `${color}14`);
       gradient.addColorStop(1, "transparent");
       ctx.fillStyle = gradient;
       ctx.beginPath();
@@ -271,7 +271,7 @@ export default function Home() {
 
         ctx.beginPath();
         ctx.fillStyle = selected ? "#ffffff" : color;
-        ctx.globalAlpha = (0.25 + Math.sin(t * pt.s + i) * 0.18 + 0.32) * glow;
+       ctx.globalAlpha = (0.12 + Math.sin(t * pt.s + i) * 0.08 + 0.22) * glow;
         ctx.arc(x, y, pt.r * (selected ? 1.35 : 1), 0, Math.PI * 2);
         ctx.fill();
       });
