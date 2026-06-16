@@ -27,8 +27,8 @@ button {
   position: relative;
   overflow: hidden;
   background:
-    radial-gradient(circle at 50% 48%, rgba(120, 190, 255, 0.18), transparent 28%),
-    radial-gradient(circle at 22% 18%, rgba(255, 255, 255, 0.06), transparent 18%),
+    radial-gradient(circle at 50% 48%, rgba(120, 190, 255, 0.16), transparent 28%),
+    radial-gradient(circle at 20% 18%, rgba(255, 255, 255, 0.05), transparent 18%),
     linear-gradient(120deg, #020306, #050711 45%, #020306);
 }
 
@@ -153,19 +153,32 @@ textarea {
   border: 1px solid rgba(120, 190, 255, 0.22);
 }
 
+.hint {
+  margin-top: 18px;
+  color: rgba(238, 246, 255, 0.48);
+  font-size: 10px;
+  line-height: 1.6;
+  letter-spacing: 0.16em;
+}
+
 .stage {
   position: absolute;
   inset: 0;
   overflow: hidden;
+  cursor: grab;
+}
+
+.stage.dragging {
+  cursor: grabbing;
 }
 
 .noise {
   position: absolute;
   inset: 0;
   background-image:
-    radial-gradient(circle at 20% 30%, rgba(120, 190, 255, 0.12) 0 1px, transparent 1px),
-    radial-gradient(circle at 70% 60%, rgba(255, 255, 255, 0.08) 0 1px, transparent 1px),
-    radial-gradient(circle at 40% 80%, rgba(120, 190, 255, 0.1) 0 1px, transparent 1px);
+    radial-gradient(circle at 20% 30%, rgba(120, 190, 255, 0.11) 0 1px, transparent 1px),
+    radial-gradient(circle at 70% 60%, rgba(255, 255, 255, 0.07) 0 1px, transparent 1px),
+    radial-gradient(circle at 40% 80%, rgba(120, 190, 255, 0.08) 0 1px, transparent 1px);
   background-size: 70px 70px, 110px 110px, 160px 160px;
   animation: drift 18s linear infinite;
 }
@@ -176,8 +189,8 @@ textarea {
   background:
     repeating-linear-gradient(
       0deg,
-      rgba(255, 255, 255, 0.025),
-      rgba(255, 255, 255, 0.025) 1px,
+      rgba(255, 255, 255, 0.022),
+      rgba(255, 255, 255, 0.022) 1px,
       transparent 1px,
       transparent 3px
     );
@@ -194,9 +207,14 @@ textarea {
   }
 }
 
-.synapseView {
+.synapseWorld {
   position: absolute;
-  inset: 0;
+  left: 50%;
+  top: 50%;
+  width: 1800px;
+  height: 1200px;
+  transform-origin: center;
+  transition: transform 0.08s linear;
 }
 
 .synapseSvg {
@@ -208,8 +226,8 @@ textarea {
 
 .synapseSvg path {
   fill: none;
-  stroke: rgba(120, 190, 255, 0.45);
-  stroke-width: 0.35;
+  stroke: rgba(120, 190, 255, 0.48);
+  stroke-width: 0.32;
   vector-effect: non-scaling-stroke;
   filter: url(#glow);
   stroke-dasharray: 9 12;
@@ -235,78 +253,45 @@ textarea {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 124px;
-  height: 124px;
+  width: 128px;
+  height: 128px;
   transform: translate(-50%, -50%);
-  border-radius: 43% 57% 52% 48%;
+  border-radius: 50%;
   color: #020306;
-  background: #eef6ff;
+  background: transparent;
   cursor: pointer;
   z-index: 10;
-  box-shadow:
-    0 0 28px rgba(238, 246, 255, 0.45),
-    0 0 120px rgba(120, 190, 255, 0.5);
-  animation: nucleus 5s ease-in-out infinite;
 }
 
-@keyframes nucleus {
-  0%, 100% {
-    border-radius: 43% 57% 52% 48%;
-    transform: translate(-50%, -50%) scale(1);
-  }
-  50% {
-    border-radius: 58% 42% 46% 54%;
-    transform: translate(-50%, -50%) scale(1.05);
-  }
-}
-
-.core span {
+.core b {
+  position: relative;
+  z-index: 3;
   display: block;
   font-size: 25px;
   font-weight: 900;
   letter-spacing: -0.06em;
+  margin-top: 42px;
 }
 
 .core small {
+  position: relative;
+  z-index: 3;
   font-size: 10px;
   letter-spacing: 0.28em;
 }
 
 .neuron {
   position: absolute;
-  width: 118px;
-  min-height: 118px;
+  width: 140px;
+  min-height: 140px;
   transform: translate(-50%, -50%);
   color: #eef6ff;
-  background:
-    radial-gradient(circle at 45% 35%, rgba(238, 246, 255, 0.16), transparent 36%),
-    rgba(120, 190, 255, 0.08);
-  border: 1px solid rgba(120, 190, 255, 0.26);
-  backdrop-filter: blur(14px);
+  background: transparent;
   cursor: pointer;
-  padding: 14px;
+  padding: 20px;
   z-index: 12;
   transition: 0.28s;
   animation: neuronFloat 6s ease-in-out infinite;
-  clip-path: polygon(
-    51% 0%,
-    66% 9%,
-    82% 8%,
-    91% 23%,
-    100% 39%,
-    88% 55%,
-    93% 74%,
-    76% 86%,
-    61% 100%,
-    43% 92%,
-    25% 98%,
-    14% 82%,
-    0% 68%,
-    8% 49%,
-    3% 29%,
-    21% 18%,
-    34% 5%
-  );
 }
 
 @keyframes neuronFloat {
@@ -315,8 +300,56 @@ textarea {
     margin-left: 0;
   }
   50% {
-    margin-top: -12px;
+    margin-top: -10px;
     margin-left: 8px;
+  }
+}
+
+.particleCloud {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  filter: drop-shadow(0 0 10px rgba(120, 190, 255, 0.42));
+}
+
+.particleCloud span {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(3px + (var(--i) % 4) * 1px);
+  height: calc(3px + (var(--i) % 4) * 1px);
+  border-radius: 50%;
+  background: rgba(238, 246, 255, 0.88);
+  transform:
+    rotate(calc(var(--i) * 37deg))
+    translateX(calc(18px + (var(--i) % 9) * 6px))
+    translateY(calc((var(--i) % 5) * 2px - 4px));
+  animation: particleOrbit calc(4s + (var(--i) % 7) * 0.45s) ease-in-out infinite;
+  animation-delay: calc(var(--i) * -0.13s);
+}
+
+.coreCloud span {
+  background: rgba(238, 246, 255, 0.94);
+  width: calc(4px + (var(--i) % 5) * 1px);
+  height: calc(4px + (var(--i) % 5) * 1px);
+}
+
+@keyframes particleOrbit {
+  0%, 100% {
+    opacity: 0.32;
+    transform:
+      rotate(calc(var(--i) * 37deg))
+      translateX(calc(18px + (var(--i) % 9) * 6px))
+      scale(0.7);
+  }
+  45% {
+    opacity: 1;
+    transform:
+      rotate(calc(var(--i) * 37deg + 18deg))
+      translateX(calc(26px + (var(--i) % 10) * 7px))
+      translateY(calc((var(--i) % 7) * 3px - 9px))
+      scale(1.2);
   }
 }
 
@@ -324,30 +357,25 @@ textarea {
 .neuron::after {
   content: "";
   position: absolute;
-  width: 72px;
+  width: 86px;
   height: 1px;
   background: linear-gradient(90deg, rgba(120, 190, 255, 0.7), transparent);
-  left: 70%;
-  top: 45%;
+  left: 64%;
+  top: 46%;
   transform: rotate(-22deg);
   transform-origin: left;
+  opacity: 0.7;
 }
 
 .neuron::after {
-  transform: rotate(38deg);
-  top: 60%;
-  opacity: 0.45;
-}
-
-.neuron i {
-  position: absolute;
-  inset: 10px;
-  border: 1px solid rgba(238, 246, 255, 0.18);
-  border-radius: 48% 52% 56% 44%;
-  pointer-events: none;
+  transform: rotate(34deg);
+  top: 58%;
+  opacity: 0.36;
 }
 
 .nodeImage {
+  position: relative;
+  z-index: 3;
   width: 100%;
   height: 48px;
   object-fit: cover;
@@ -357,44 +385,48 @@ textarea {
   filter: grayscale(1) contrast(1.2);
 }
 
-.neuron span {
+.neuron em {
+  position: relative;
+  z-index: 3;
   display: block;
   color: #78beff;
   font-size: 9px;
   letter-spacing: 0.14em;
   margin-bottom: 7px;
+  font-style: normal;
 }
 
 .neuron strong {
+  position: relative;
+  z-index: 3;
   display: block;
   font-size: 13px;
   line-height: 1.25;
+  text-shadow: 0 0 12px rgba(2, 3, 6, 0.9);
 }
 
 .neuron:hover,
 .neuron.active {
   transform: translate(-50%, -50%) scale(1.16);
-  background: #eef6ff;
-  color: #020306;
-  box-shadow: 0 0 48px rgba(120, 190, 255, 0.5);
 }
 
-.neuron:hover span,
-.neuron.active span {
-  color: #020306;
+.neuron:hover .particleCloud span,
+.neuron.active .particleCloud span {
+  background: #ffffff;
+  box-shadow: 0 0 18px rgba(120, 190, 255, 0.9);
 }
 
 .neuron-photo {
-  width: 138px;
-  min-height: 138px;
+  width: 166px;
+  min-height: 166px;
 }
 
-.neuron-drawing {
-  clip-path: polygon(50% 0%, 100% 28%, 88% 100%, 10% 90%, 0% 18%);
+.neuron-drawing .particleCloud span {
+  background: rgba(210, 230, 255, 0.75);
 }
 
-.neuron-concept {
-  border-color: rgba(238, 246, 255, 0.42);
+.neuron-concept .particleCloud span {
+  background: rgba(255, 255, 255, 0.95);
 }
 
 .timelineView {
@@ -537,6 +569,11 @@ textarea {
     margin-bottom: 20px;
   }
 
+  .synapseWorld {
+    width: 1200px;
+    height: 900px;
+  }
+
   .timelineView {
     position: absolute;
     inset: 20px;
@@ -544,7 +581,7 @@ textarea {
   }
 
   .neuron {
-    width: 104px;
-    min-height: 104px;
+    width: 118px;
+    min-height: 118px;
   }
 }
