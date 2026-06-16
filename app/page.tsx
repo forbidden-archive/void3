@@ -16,21 +16,21 @@ const initialEntries: Entry[] = [
   {
     id: "001",
     date: "2026-06-05",
-    title: "VOIDの定義",
+    title: "VOID",
     text: "社会に価値を与えたことで、社会から切り離された存在。",
     tag: "concept"
   },
   {
     id: "002",
     date: "2026-06-08",
-    title: "下を向く人々",
+    title: "gaze",
     text: "スマホによって人の視線は下へ向かう。",
     tag: "gaze"
   },
   {
     id: "003",
     date: "2026-06-10",
-    title: "上にある電波塔",
+    title: "tower",
     text: "通信を支える塔は上にあるが、誰も見上げない。",
     tag: "tower"
   }
@@ -38,9 +38,9 @@ const initialEntries: Entry[] = [
 
 export default function Home() {
   const [entries, setEntries] = useState<Entry[]>(initialEntries);
-  const [selectedId, setSelectedId] = useState("001");
-  const [query, setQuery] = useState("");
+  const [selectedId, setSelectedId] = useState("");
   const [openAdd, setOpenAdd] = useState(false);
+  const [query, setQuery] = useState("");
 
   const [form, setForm] = useState({
     date: "",
@@ -52,35 +52,30 @@ export default function Home() {
   });
 
   useEffect(() => {
-    const saved = localStorage.getItem("void-horizontal-archive");
+    const saved = localStorage.getItem("void-clean-archive");
     if (saved) setEntries(JSON.parse(saved));
   }, []);
 
   useEffect(() => {
-    localStorage.setItem("void-horizontal-archive", JSON.stringify(entries));
+    localStorage.setItem("void-clean-archive", JSON.stringify(entries));
   }, [entries]);
 
   const filtered = useMemo(() => {
     return entries
       .filter((entry) => {
-        const target = `${entry.date} ${entry.title} ${entry.text} ${entry.tag}`;
-        return target.toLowerCase().includes(query.toLowerCase());
+        const t = `${entry.date} ${entry.title} ${entry.text} ${entry.tag}`;
+        return t.toLowerCase().includes(query.toLowerCase());
       })
       .sort((a, b) => a.date.localeCompare(b.date));
   }, [entries, query]);
 
-  const selected =
-    entries.find((entry) => entry.id === selectedId) || filtered[0] || entries[0];
+  const selected = entries.find((entry) => entry.id === selectedId);
 
   const upload = (file: File | undefined, key: "drawing" | "photo") => {
     if (!file) return;
-
     const reader = new FileReader();
     reader.onload = () => {
-      setForm((prev) => ({
-        ...prev,
-        [key]: String(reader.result)
-      }));
+      setForm((prev) => ({ ...prev, [key]: String(reader.result) }));
     };
     reader.readAsDataURL(file);
   };
@@ -113,42 +108,47 @@ export default function Home() {
 
   const reset = () => {
     setEntries(initialEntries);
-    setSelectedId("001");
-    localStorage.removeItem("void-horizontal-archive");
+    setSelectedId("");
+    localStorage.removeItem("void-clean-archive");
   };
 
   return (
-    <main className="archive">
-      <header className="header">
-        <div>
-          <p>VOID TOWER ARCHIVE</p>
-          <h1>RESEARCH DRAWINGS</h1>
-        </div>
+    <main className="page">
+      <header className="top">
+        <button>contact us</button>
 
-        <div className="tools">
+        <div className="logo">void</div>
+
+        <button onClick={() => setOpenAdd(!openAdd)}>menu</button>
+      </header>
+
+      <section className="intro">
+        <p>Connecting void.</p>
+
+        <div className="sort">
+          <span>sort by :</span>
           <input
-            placeholder="SEARCH"
+            placeholder="season"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
-          <button onClick={() => setOpenAdd(!openAdd)}>ADD</button>
         </div>
-      </header>
+      </section>
 
       <nav className="timeline">
         {filtered.map((entry) => (
           <button
             key={entry.id}
-            className={selectedId === entry.id ? "active" : ""}
             onClick={() => setSelectedId(entry.id)}
+            className={selectedId === entry.id ? "active" : ""}
           >
-            <span>{entry.date.slice(5).replace("-", ".")}</span>
+            {entry.date.slice(5).replace("-", ".")}
           </button>
         ))}
       </nav>
 
       {openAdd && (
-        <section className="addPanel">
+        <section className="add">
           <input
             type="date"
             value={form.date}
@@ -162,7 +162,7 @@ export default function Home() {
           />
 
           <textarea
-            placeholder="topic text / observation"
+            placeholder="text"
             value={form.text}
             onChange={(e) => setForm({ ...form, text: e.target.value })}
           />
@@ -174,7 +174,7 @@ export default function Home() {
           />
 
           <label>
-            DRAWING
+            drawing
             <input
               type="file"
               accept="image/*"
@@ -183,7 +183,7 @@ export default function Home() {
           </label>
 
           <label>
-            PHOTO
+            photo
             <input
               type="file"
               accept="image/*"
@@ -191,66 +191,52 @@ export default function Home() {
             />
           </label>
 
-          <div className="addActions">
-            <button onClick={addEntry}>SAVE</button>
-            <button onClick={reset}>RESET</button>
-          </div>
+          <button onClick={addEntry}>save</button>
+          <button onClick={reset}>reset</button>
         </section>
       )}
 
-      <section className="horizontal">
-        {filtered.map((entry, index) => (
+      <section className="gallery">
+        {filtered.map((entry) => (
           <article
             key={entry.id}
-            className={`drawingCard ${selectedId === entry.id ? "active" : ""}`}
+            className="item"
             onClick={() => setSelectedId(entry.id)}
           >
-            <p className="number">{String(index + 1).padStart(2, "0")}</p>
-
-            <div className="imageBox">
-              {entry.drawing ? (
-                <img src={entry.drawing} alt="" />
+            <div className="image">
+              {entry.photo ? (
+                <img className="photo" src={entry.photo} alt="" />
               ) : (
-                <div className="placeholder">
-                  <span>{entry.title}</span>
-                </div>
+                <div className="empty" />
               )}
-            </div>
 
-            <div className="cardMeta">
-              <span>{entry.date}</span>
-              <h2>{entry.title}</h2>
-              <p>#{entry.tag}</p>
+              {entry.drawing ? (
+                <img className="drawing" src={entry.drawing} alt="" />
+              ) : (
+                <svg className="lineDrawing" viewBox="0 0 300 420">
+                  <path d="M80 250 C120 150, 180 150, 210 230" />
+                  <path d="M110 280 C150 210, 190 250, 170 320" />
+                  <path d="M120 110 C180 80, 220 130, 190 180" />
+                </svg>
+              )}
             </div>
           </article>
         ))}
       </section>
 
       {selected && (
-        <aside className="detail">
-          <button className="close" onClick={() => setSelectedId("")}>
-            ×
-          </button>
+        <aside className="detail" onClick={() => setSelectedId("")}>
+          <div onClick={(e) => e.stopPropagation()}>
+            <button className="close" onClick={() => setSelectedId("")}>
+              close
+            </button>
 
-          <p className="detailDate">{selected.date}</p>
-          <h2>{selected.title}</h2>
-          <p className="detailText">{selected.text}</p>
-          <p className="tag">#{selected.tag}</p>
+            <p>{selected.date}</p>
+            <h2>{selected.title}</h2>
+            <p>{selected.text}</p>
+            <span>#{selected.tag}</span>
 
-          <div className="detailImages">
-            {selected.drawing && (
-              <div>
-                <span>DRAWING</span>
-                <img src={selected.drawing} alt="" />
-              </div>
-            )}
-
-            {selected.photo && (
-              <div>
-                <span>PHOTO</span>
-                <img src={selected.photo} alt="" />
-              </div>
-            )}
+            {selected.photo && <img src={selected.photo} alt="" />}
           </div>
         </aside>
       )}
