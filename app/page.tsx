@@ -12,6 +12,8 @@ type Entry = {
   photo?: string;
 };
 
+const STORAGE_KEY = "void-clean-archive-v3";
+
 const initialEntries: Entry[] = [
   {
     id: "001",
@@ -52,13 +54,18 @@ export default function Home() {
   });
 
   useEffect(() => {
-    const saved = localStorage.getItem("void-clean-archive-v2");
-    if (saved) setEntries(JSON.parse(saved));
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) setEntries(JSON.parse(saved));
+    } catch {
+      setEntries(initialEntries);
+    }
   }, []);
 
-  useEffect(() => {
-    localStorage.setItem("void-clean-archive-v2", JSON.stringify(entries));
-  }, [entries]);
+  const saveEntries = (nextEntries: Entry[]) => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(nextEntries));
+    setEntries(nextEntries);
+  };
 
   const filtered = useMemo(() => {
     return entries
@@ -72,17 +79,62 @@ export default function Home() {
 
   const selected = entries.find((e) => e.id === selectedId);
 
-  const upload = (file: File | undefined, key: "drawing" | "photo") => {
+  const resizeImage = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+
+      reader.onload = () => {
+        const img = new Image();
+
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          const maxSize = 1200;
+          const ratio = Math.min(maxSize / img.width, maxSize / img.height, 1);
+
+          canvas.width = Math.round(img.width * ratio);
+          canvas.height = Math.round(img.height * ratio);
+
+          const ctx = canvas.getContext("2d");
+          if (!ctx) {
+            reject(new Error("Canvas error"));
+            return;
+          }
+
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+          const dataUrl = canvas.toDataURL("image/jpeg", 0.72);
+          resolve(dataUrl);
+        };
+
+        img.onerror = reject;
+        img.src = String(reader.result);
+      };
+
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const upload = async (
+    file: File | undefined,
+    key: "drawing" | "photo"
+  ) => {
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      setForm((prev) => ({ ...prev, [key]: String(reader.result) }));
-    };
-    reader.readAsDataURL(file);
+
+    try {
+      const resized = await resizeImage(file);
+      setForm((prev) => ({ ...prev, [key]: resized }));
+      alert(`${key} loaded`);
+    } catch {
+      alert("画像の読み込みに失敗しました");
+    }
   };
 
   const addEntry = () => {
-    if (!form.title.trim()) return;
+    if (!form.title.trim()) {
+      alert("titleを入れて");
+      return;
+    }
 
     const newEntry: Entry = {
       id: String(Date.now()),
@@ -94,16 +146,36 @@ export default function Home() {
       photo: form.photo
     };
 
-    setEntries((prev) => [...prev, newEntry]);
-    setSelectedId(newEntry.id);
-    setOpenAdd(false);
-    setForm({ date: "", title: "", text: "", tag: "", drawing: "", photo: "" });
+    const nextEntries = [...entries, newEntry];
+
+    try {
+      saveEntries(nextEntries);
+
+      setSelectedId(newEntry.id);
+      setOpenAdd(false);
+      setForm({
+        date: "",
+        title: "",
+        text: "",
+        tag: "",
+        drawing: "",
+        photo: ""
+      });
+
+      alert("saved");
+    } catch (error) {
+      console.error(error);
+      alert(
+        "保存できません。画像がまだ大きい可能性があります。画像なし、または小さい画像で試して。"
+      );
+    }
   };
 
   const reset = () => {
-    localStorage.removeItem("void-clean-archive-v2");
+    localStorage.removeItem(STORAGE_KEY);
     setEntries(initialEntries);
     setSelectedId("");
+    alert("reset");
   };
 
   return (
@@ -242,6 +314,9 @@ export default function Home() {
               onChange={(e) => upload(e.target.files?.[0], "photo")}
             />
           </label>
+
+          {form.drawing && <p className="loaded">drawing loaded</p>}
+          {form.photo && <p className="loaded">photo loaded</p>}
 
           <button className="save" onClick={addEntry}>
             save
