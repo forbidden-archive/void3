@@ -1,0 +1,114 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #050505;
+  color: white;
+  font-family: Arial, sans-serif;
+}
+
+.menu {
+  position: fixed;
+  top: 0;
+  width: 100%;
+  padding: 30px;
+  display: flex;
+  justify-content: space-between;
+  z-index: 10;
+  mix-blend-mode: difference;
+}
+
+.hero {
+  min-height: 100vh;
+  position: relative;
+  overflow: hidden;
+  padding: 120px 40px;
+}
+
+.bgText {
+  position: absolute;
+  top: 30%;
+  left: -10%;
+  font-size: 8vw;
+  white-space: nowrap;
+  color: rgba(125,183,255,0.08);
+  transform: rotate(-8deg);
+}
+
+.heroContent {
+  position: relative;
+  z-index: 2;
+}
+
+.label {
+  color: #7db7ff;
+  letter-spacing: 0.3em;
+}
+
+h1 {
+  font-size: clamp(80px,18vw,260px);
+  line-height: 0.8;
+  margin: 20px 0;
+  letter-spacing: -0.1em;
+}
+
+.lead {
+  max-width: 500px;
+  line-height: 1.8;
+}
+
+.tower {
+  position: absolute;
+  right: 5vw;
+  top: 10vh;
+  width: 30vw;
+  height: 80vh;
+}
+
+.tower line,
+.tower circle {
+  fill: none;
+  stroke: white;
+  stroke-width: 2;
+}
+
+.tower circle {
+  stroke: #7db7ff;
+}
+
+.statement {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  flex-direction: column;
+  padding: 80px;
+}
+
+.small {
+  color: #7db7ff;
+}
+
+.statement h2 {
+  font-size: clamp(40px,7vw,120px);
+  line-height: 1;
+}
+
+.logs {
+  padding: 80px;
+}
+
+.log {
+  border-top: 1px solid rgba(255,255,255,.2);
+  padding: 40px 0;
+}
+
+.log span {
+  color: #7db7ff;
+}
+
+.log h3 {
+  font-size: 48px;
+  margin: 10px 0;
+}
