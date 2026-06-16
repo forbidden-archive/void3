@@ -1,391 +1,547 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+
+type Block = {
+  id: string;
+  type: "text" | "image" | "drawing";
+  content: string;
+};
 
 type Entry = {
   id: string;
   date: string;
   title: string;
-  text: string;
   tag: string;
-  drawing?: string;
-  photo?: string;
+  thumbnail?: string;
+  blocks: Block[];
 };
 
-const STORAGE_KEY = "void-clean-archive-v4";
+const STORAGE_KEY = "void-archive-v5";
 
-const initialEntries: Entry[] = [
+const starterData: Entry[] = [
   {
-    id: "001",
+    id: "1",
     date: "2026-06-05",
     title: "VOID",
-    text: "社会に価値を与えたことで、社会から切り離された存在。",
-    tag: "concept"
-  },
-  {
-    id: "002",
-    date: "2026-06-08",
-    title: "gaze",
-    text: "スマホによって人の視線は下へ向かう。",
-    tag: "gaze"
-  },
-  {
-    id: "003",
-    date: "2026-06-10",
-    title: "tower",
-    text: "通信を支える塔は上にあるが、誰も見上げない。",
-    tag: "tower"
+    tag: "concept",
+    blocks: [
+      {
+        id: "b1",
+        type: "text",
+        content:
+          "社会に価値を与えたことで社会から切り離された存在。"
+      }
+    ]
   }
 ];
 
 export default function Home() {
-  const [entries, setEntries] = useState<Entry[]>(initialEntries);
-  const [selectedId, setSelectedId] = useState("");
-  const [openForm, setOpenForm] = useState(false);
-  const [mode, setMode] = useState<"add" | "edit">("add");
-  const [query, setQuery] = useState("");
+  const [entries, setEntries] = useState<Entry[]>(starterData);
 
-  const [form, setForm] = useState({
+  const [selectedId, setSelectedId] = useState("");
+
+  const [editorOpen, setEditorOpen] = useState(false);
+
+  const [form, setForm] = useState<Entry>({
+    id: "",
     date: "",
     title: "",
-    text: "",
     tag: "",
-    drawing: "",
-    photo: ""
+    thumbnail: "",
+    blocks: []
   });
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) setEntries(JSON.parse(saved));
-    } catch {
-      setEntries(initialEntries);
+    const saved = localStorage.getItem(STORAGE_KEY);
+
+    if (saved) {
+      setEntries(JSON.parse(saved));
     }
   }, []);
 
-  const saveEntries = (nextEntries: Entry[]) => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(nextEntries));
-    setEntries(nextEntries);
+  const saveEntries = (next: Entry[]) => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify(next)
+    );
+
+    setEntries(next);
   };
 
-  const filtered = useMemo(() => {
-    return entries
-      .filter((e) =>
-        `${e.date} ${e.title} ${e.text} ${e.tag}`
-          .toLowerCase()
-          .includes(query.toLowerCase())
-      )
-      .sort((a, b) => a.date.localeCompare(b.date));
-  }, [entries, query]);
+  const selected = entries.find(
+    (entry) => entry.id === selectedId
+  );
 
-  const selected = entries.find((e) => e.id === selectedId);
-
-  const resizeImage = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
+  const resizeImage = (
+    file: File
+  ): Promise<string> => {
+    return new Promise((resolve) => {
       const reader = new FileReader();
 
       reader.onload = () => {
         const img = new Image();
 
         img.onload = () => {
-          const canvas = document.createElement("canvas");
-          const maxSize = 1200;
-          const ratio = Math.min(maxSize / img.width, maxSize / img.height, 1);
+          const canvas =
+            document.createElement("canvas");
 
-          canvas.width = Math.round(img.width * ratio);
-          canvas.height = Math.round(img.height * ratio);
+          const max = 1600;
 
-          const ctx = canvas.getContext("2d");
-          if (!ctx) {
-            reject(new Error("Canvas error"));
-            return;
-          }
+          const ratio = Math.min(
+            max / img.width,
+            max / img.height,
+            1
+          );
 
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          resolve(canvas.toDataURL("image/jpeg", 0.72));
+          canvas.width = img.width * ratio;
+          canvas.height = img.height * ratio;
+
+          const ctx =
+            canvas.getContext("2d");
+
+          ctx?.drawImage(
+            img,
+            0,
+            0,
+            canvas.width,
+            canvas.height
+          );
+
+          resolve(
+            canvas.toDataURL(
+              "image/jpeg",
+              0.82
+            )
+          );
         };
 
-        img.onerror = reject;
-        img.src = String(reader.result);
+        img.src = reader.result as string;
       };
 
-      reader.onerror = reject;
       reader.readAsDataURL(file);
     });
   };
 
-  const upload = async (
-    file: File | undefined,
-    key: "drawing" | "photo"
+  const uploadThumbnail = async (
+    file?: File
   ) => {
     if (!file) return;
 
-    try {
-      const resized = await resizeImage(file);
-      setForm((prev) => ({ ...prev, [key]: resized }));
-    } catch {
-      alert("画像の読み込みに失敗しました");
-    }
+    const image =
+      await resizeImage(file);
+
+    setForm((prev) => ({
+      ...prev,
+      thumbnail: image
+    }));
   };
 
-  const openAddForm = () => {
-    setMode("add");
+  const uploadBlockImage = async (
+    file: File,
+    blockId: string
+  ) => {
+    const image =
+      await resizeImage(file);
+
+    setForm((prev) => ({
+      ...prev,
+      blocks: prev.blocks.map((b) =>
+        b.id === blockId
+          ? {
+              ...b,
+              content: image
+            }
+          : b
+      )
+    }));
+  };
+
+  const addBlock = (
+    type:
+      | "text"
+      | "image"
+      | "drawing"
+  ) => {
+    setForm((prev) => ({
+      ...prev,
+      blocks: [
+        ...prev.blocks,
+        {
+          id: crypto.randomUUID(),
+          type,
+          content: ""
+        }
+      ]
+    }));
+  };
+
+  const saveEntry = () => {
+    if (!form.title) return;
+
+    const id =
+      form.id ||
+      crypto.randomUUID();
+
+    const entry = {
+      ...form,
+      id
+    };
+
+    const exists =
+      entries.find(
+        (e) => e.id === id
+      );
+
+    if (exists) {
+      saveEntries(
+        entries.map((e) =>
+          e.id === id ? entry : e
+        )
+      );
+    } else {
+      saveEntries([
+        ...entries,
+        entry
+      ]);
+    }
+
+    setSelectedId(id);
+
+    setEditorOpen(false);
+  };
+
+  const deleteEntry = () => {
+    if (!selected) return;
+
+    saveEntries(
+      entries.filter(
+        (e) => e.id !== selected.id
+      )
+    );
+
+    setSelectedId("");
+    setEditorOpen(false);
+  };
+
+  const createNew = () => {
     setForm({
-      date: "",
+      id: "",
+      date: new Date()
+        .toISOString()
+        .slice(0, 10),
       title: "",
-      text: "",
       tag: "",
-      drawing: "",
-      photo: ""
+      thumbnail: "",
+      blocks: []
     });
-    setOpenForm(true);
+
+    setEditorOpen(true);
   };
 
-  const openEditForm = () => {
+  const editCurrent = () => {
     if (!selected) return;
 
-    setMode("edit");
-    setForm({
-      date: selected.date,
-      title: selected.title,
-      text: selected.text,
-      tag: selected.tag,
-      drawing: selected.drawing || "",
-      photo: selected.photo || ""
-    });
-    setOpenForm(true);
-  };
+    setForm(selected);
 
-  const submitForm = () => {
-    if (!form.title.trim()) {
-      alert("titleを入れて");
-      return;
-    }
-
-    try {
-      if (mode === "add") {
-        const newEntry: Entry = {
-          id: String(Date.now()),
-          date: form.date || new Date().toISOString().slice(0, 10),
-          title: form.title,
-          text: form.text,
-          tag: form.tag || "untagged",
-          drawing: form.drawing,
-          photo: form.photo
-        };
-
-        const nextEntries = [...entries, newEntry];
-        saveEntries(nextEntries);
-        setSelectedId(newEntry.id);
-      } else {
-        if (!selected) return;
-
-        const nextEntries = entries.map((entry) =>
-          entry.id === selected.id
-            ? {
-                ...entry,
-                date: form.date || entry.date,
-                title: form.title,
-                text: form.text,
-                tag: form.tag || "untagged",
-                drawing: form.drawing,
-                photo: form.photo
-              }
-            : entry
-        );
-
-        saveEntries(nextEntries);
-      }
-
-      setOpenForm(false);
-      setForm({
-        date: "",
-        title: "",
-        text: "",
-        tag: "",
-        drawing: "",
-        photo: ""
-      });
-    } catch (error) {
-      console.error(error);
-      alert("保存できません。画像サイズが大きすぎる可能性があります。");
-    }
-  };
-
-  const deleteSelected = () => {
-    if (!selected) return;
-    const nextEntries = entries.filter((entry) => entry.id !== selected.id);
-    saveEntries(nextEntries);
-    setSelectedId("");
-    setOpenForm(false);
-  };
-
-  const reset = () => {
-    localStorage.removeItem(STORAGE_KEY);
-    setEntries(initialEntries);
-    setSelectedId("");
-    setOpenForm(false);
+    setEditorOpen(true);
   };
 
   return (
-    <main className={selected ? "page detailMode" : "page"}>
+    <main className="page">
       <header className="top">
-        <button>contact us</button>
-        <div className="logo">void</div>
+
+        <button>
+          contact us
+        </button>
+
+        <div className="logo">
+          void
+        </div>
+
         {selected ? (
-          <button onClick={openEditForm}>edit</button>
+          <button
+            onClick={
+              editCurrent
+            }
+          >
+            edit
+          </button>
         ) : (
-          <button onClick={openAddForm}>add</button>
+          <button
+            onClick={
+              createNew
+            }
+          >
+            add
+          </button>
         )}
+
       </header>
 
       {!selected && (
-        <>
-          <section className="intro">
-            <p>Connecting void.</p>
+        <section className="gallery">
 
-            <div className="sort">
-              <span>sort by :</span>
-              <input
-                placeholder="tag"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-              />
-            </div>
-          </section>
-
-          <nav className="timeline">
-            {filtered.map((entry) => (
-              <button key={entry.id} onClick={() => setSelectedId(entry.id)}>
-                {entry.date.slice(5).replace("-", ".")}
-              </button>
-            ))}
-          </nav>
-
-          <section className="gallery">
-            {filtered.map((entry) => (
+          {entries.map(
+            (entry) => (
               <article
                 key={entry.id}
-                className="item"
-                onClick={() => setSelectedId(entry.id)}
+                className="card"
+                onClick={() =>
+                  setSelectedId(
+                    entry.id
+                  )
+                }
               >
-                <div className="image">
-                  {entry.photo ? (
-                    <img className="photo" src={entry.photo} alt="" />
-                  ) : (
-                    <div className="empty" />
-                  )}
-
-                  {entry.drawing ? (
-                    <img className="drawing" src={entry.drawing} alt="" />
-                  ) : (
-                    <svg className="lineDrawing" viewBox="0 0 300 420">
-                      <path d="M80 250 C120 150, 180 150, 210 230" />
-                      <path d="M110 280 C150 210, 190 250, 170 320" />
-                      <path d="M120 110 C180 80, 220 130, 190 180" />
-                    </svg>
-                  )}
-                </div>
+                {entry.thumbnail ? (
+                  <img
+                    src={
+                      entry.thumbnail
+                    }
+                    alt=""
+                  />
+                ) : (
+                  <div className="placeholder" />
+                )}
               </article>
-            ))}
-          </section>
-        </>
-      )}
+            )
+          )}
 
-      {selected && (
-        <section className="detailPage">
-          <button className="back" onClick={() => setSelectedId("")}>
-            back
-          </button>
-
-          <p className="detailDate">{selected.date}</p>
-
-          <div className="heroImage">
-            {selected.photo ? (
-              <img className="photo" src={selected.photo} alt="" />
-            ) : (
-              <div className="empty" />
-            )}
-
-            {selected.drawing && (
-              <img className="drawing" src={selected.drawing} alt="" />
-            )}
-          </div>
-
-          <article className="detailText">
-            <h1>{selected.title}</h1>
-            <p>{selected.text}</p>
-            <span>#{selected.tag}</span>
-          </article>
-
-          <div className="bottomSpace" />
         </section>
       )}
 
-      {openForm && (
-        <section className="add">
-          <button className="addClose" onClick={() => setOpenForm(false)}>
+      {selected && (
+        <section className="detail">
+
+          <button
+            className="back"
+            onClick={() =>
+              setSelectedId("")
+            }
+          >
+            back
+          </button>
+
+          <h1>
+            {selected.title}
+          </h1>
+
+          <p className="date">
+            {selected.date}
+          </p>
+
+          {selected.blocks.map(
+            (block) => {
+              if (
+                block.type ===
+                "text"
+              ) {
+                return (
+                  <p
+                    key={
+                      block.id
+                    }
+                    className="bodyText"
+                  >
+                    {
+                      block.content
+                    }
+                  </p>
+                );
+              }
+
+              return (
+                <img
+                  key={
+                    block.id
+                  }
+                  src={
+                    block.content
+                  }
+                  alt=""
+                  className="contentImage"
+                />
+              );
+            }
+          )}
+        </section>
+      )}
+
+      {editorOpen && (
+        <section className="editor">
+
+          <button
+            onClick={() =>
+              setEditorOpen(
+                false
+              )
+            }
+          >
             close
           </button>
 
           <input
             type="date"
             value={form.date}
-            onChange={(e) => setForm({ ...form, date: e.target.value })}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                date:
+                  e.target
+                    .value
+              })
+            }
           />
 
           <input
             placeholder="title"
             value={form.title}
-            onChange={(e) => setForm({ ...form, title: e.target.value })}
-          />
-
-          <textarea
-            placeholder="text"
-            value={form.text}
-            onChange={(e) => setForm({ ...form, text: e.target.value })}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                title:
+                  e.target
+                    .value
+              })
+            }
           />
 
           <input
             placeholder="tag"
             value={form.tag}
-            onChange={(e) => setForm({ ...form, tag: e.target.value })}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                tag:
+                  e.target
+                    .value
+              })
+            }
           />
 
           <label>
-            drawing
+            thumbnail
+
             <input
               type="file"
               accept="image/*"
-              onChange={(e) => upload(e.target.files?.[0], "drawing")}
+              onChange={(e) =>
+                uploadThumbnail(
+                  e.target
+                    .files?.[0]
+                )
+              }
             />
           </label>
 
-          <label>
-            photo
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) => upload(e.target.files?.[0], "photo")}
-            />
-          </label>
+          <div className="blockButtons">
 
-          {form.drawing && <p className="loaded">drawing loaded</p>}
-          {form.photo && <p className="loaded">photo loaded</p>}
-
-          <button className="save" onClick={submitForm}>
-            {mode === "add" ? "save" : "update"}
-          </button>
-
-          {mode === "edit" && (
-            <button className="delete" onClick={deleteSelected}>
-              delete
+            <button
+              onClick={() =>
+                addBlock(
+                  "text"
+                )
+              }
+            >
+              + text
             </button>
+
+            <button
+              onClick={() =>
+                addBlock(
+                  "image"
+                )
+              }
+            >
+              + image
+            </button>
+
+            <button
+              onClick={() =>
+                addBlock(
+                  "drawing"
+                )
+              }
+            >
+              + drawing
+            </button>
+
+          </div>
+
+          {form.blocks.map(
+            (block) => (
+              <div
+                key={block.id}
+              >
+                {block.type ===
+                "text" ? (
+                  <textarea
+                    value={
+                      block.content
+                    }
+                    onChange={(
+                      e
+                    ) =>
+                      setForm(
+                        (
+                          prev
+                        ) => ({
+                          ...prev,
+                          blocks:
+                            prev.blocks.map(
+                              (
+                                b
+                              ) =>
+                                b.id ===
+                                block.id
+                                  ? {
+                                      ...b,
+                                      content:
+                                        e
+                                          .target
+                                          .value
+                                    }
+                                  : b
+                            )
+                        })
+                      )
+                    }
+                  />
+                ) : (
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(
+                      e
+                    ) =>
+                      e.target
+                        .files?.[0] &&
+                      uploadBlockImage(
+                        e.target
+                          .files[0],
+                        block.id
+                      )
+                    }
+                  />
+                )}
+              </div>
+            )
           )}
 
-          <button className="reset" onClick={reset}>
-            reset
+          <button
+            className="save"
+            onClick={saveEntry}
+          >
+            save
           </button>
+
+          <button
+            className="delete"
+            onClick={deleteEntry}
+          >
+            delete
+          </button>
+
         </section>
       )}
     </main>
