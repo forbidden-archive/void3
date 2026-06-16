@@ -2,11 +2,15 @@
   box-sizing: border-box;
 }
 
+html,
 body {
   margin: 0;
   background: #f8fbf8;
   color: #24233f;
   font-family: Arial, Helvetica, sans-serif;
+}
+
+body {
   overflow: hidden;
 }
 
@@ -25,8 +29,7 @@ button {
 
 .page {
   width: 100vw;
-  height: 100vh;
-  overflow: hidden;
+  min-height: 100vh;
   background: #f8fbf8;
 }
 
@@ -76,10 +79,6 @@ button {
   padding: 10px 20px;
 }
 
-.sort span {
-  font-size: 14px;
-}
-
 .sort input {
   width: 80px;
   border: 0;
@@ -110,11 +109,6 @@ button {
   color: #8a8aa0;
 }
 
-.timeline button.active {
-  color: #24233f;
-  text-decoration: underline;
-}
-
 .gallery {
   position: absolute;
   top: 240px;
@@ -126,7 +120,6 @@ button {
   overflow-x: auto;
   overflow-y: hidden;
   padding: 0 64px 64px;
-  scroll-behavior: smooth;
 }
 
 .gallery::-webkit-scrollbar {
@@ -160,9 +153,7 @@ button {
 }
 
 .empty {
-  background:
-    linear-gradient(135deg, #dfe7ed, #f4f7f7),
-    radial-gradient(circle at 50% 50%, #cfd8df, transparent 40%);
+  background: linear-gradient(135deg, #dfe7ed, #f4f7f7);
 }
 
 .drawing {
@@ -173,7 +164,7 @@ button {
   object-fit: contain;
   padding: 24px;
   mix-blend-mode: screen;
-  opacity: 0.86;
+  opacity: 0.9;
   pointer-events: none;
 }
 
@@ -195,19 +186,71 @@ button {
   opacity: 0.86;
 }
 
+.detailPage {
+  min-height: 100vh;
+  padding: 120px 64px 160px;
+  overflow-y: auto;
+}
+
+.back {
+  position: fixed;
+  top: 44px;
+  left: 64px;
+  z-index: 10;
+}
+
+.detailDate {
+  text-align: center;
+  margin: 0 0 28px;
+  color: #8a8aa0;
+}
+
+.heroImage {
+  position: relative;
+  width: min(760px, 80vw);
+  height: min(760px, 72vh);
+  margin: 0 auto;
+  overflow: hidden;
+  background: #e9edf0;
+}
+
+.detailText {
+  width: min(720px, 80vw);
+  margin: 80px auto 0;
+  text-align: center;
+}
+
+.detailText h1 {
+  font-size: clamp(44px, 8vw, 120px);
+  font-weight: 400;
+  line-height: 0.9;
+  margin: 0 0 32px;
+}
+
+.detailText p {
+  line-height: 2;
+  font-size: 16px;
+}
+
+.detailText span {
+  display: block;
+  margin-top: 32px;
+  color: #8a8aa0;
+}
+
 .add {
   position: fixed;
   right: 64px;
   top: 120px;
-  width: 280px;
-  z-index: 30;
+  width: 300px;
+  z-index: 50;
   display: grid;
   gap: 10px;
   padding: 18px;
-  background: rgba(248, 251, 248, 0.92);
+  background: rgba(248, 251, 248, 0.96);
   backdrop-filter: blur(18px);
   border-radius: 24px;
-  box-shadow: 0 20px 60px rgba(30, 30, 60, 0.12);
+  box-shadow: 0 20px 60px rgba(30, 30, 60, 0.14);
 }
 
 .add input,
@@ -218,6 +261,7 @@ button {
   border-radius: 16px;
   padding: 11px 14px;
   outline: none;
+  color: #24233f;
 }
 
 .add textarea {
@@ -238,57 +282,16 @@ button {
   background: transparent;
 }
 
-.add button {
+.save {
   background: #24233f;
   color: #f8fbf8;
   padding: 11px;
   border-radius: 999px;
 }
 
-.detail {
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-  background: rgba(248, 251, 248, 0.72);
-  backdrop-filter: blur(12px);
-  display: flex;
-  justify-content: flex-end;
-}
-
-.detail > div {
-  width: 420px;
-  height: 100%;
-  background: #f8fbf8;
-  padding: 64px 42px;
-  box-shadow: -30px 0 80px rgba(30, 30, 60, 0.12);
-  overflow: auto;
-}
-
-.close {
-  margin-bottom: 48px;
+.reset,
+.addClose {
   color: #8a8aa0;
-}
-
-.detail p {
-  line-height: 1.8;
-}
-
-.detail h2 {
-  font-size: 42px;
-  line-height: 1;
-  font-weight: 400;
-  margin: 20px 0;
-}
-
-.detail span {
-  display: block;
-  margin-top: 24px;
-  color: #8a8aa0;
-}
-
-.detail img {
-  width: 100%;
-  margin-top: 32px;
 }
 
 @media (max-width: 900px) {
@@ -296,22 +299,15 @@ button {
     overflow: auto;
   }
 
-  .page {
-    height: auto;
-    min-height: 100vh;
-    overflow: visible;
-  }
-
   .top,
-  .intro {
+  .intro,
+  .detailPage {
     padding-left: 24px;
     padding-right: 24px;
   }
 
   .gallery {
-    position: relative;
-    top: auto;
-    padding: 24px;
+    padding: 0 24px 64px;
   }
 
   .item {
@@ -319,7 +315,9 @@ button {
     height: 460px;
   }
 
-  .detail > div {
-    width: 100%;
+  .add {
+    left: 24px;
+    right: 24px;
+    width: auto;
   }
 }
