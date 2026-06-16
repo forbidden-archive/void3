@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+
+type BlockType = "text" | "image" | "drawing";
 
 type Block = {
   id: string;
-  type: "text" | "image" | "drawing";
+  type: BlockType;
   content: string;
 };
 
@@ -17,7 +19,7 @@ type Entry = {
   blocks: Block[];
 };
 
-const STORAGE_KEY = "void-archive-v6";
+const STORAGE_KEY = "void-archive-v7";
 
 const starterData: Entry[] = [
   {
@@ -25,6 +27,7 @@ const starterData: Entry[] = [
     date: "2026-06-05",
     title: "VOID",
     tag: "concept",
+    thumbnail: "",
     blocks: [
       {
         id: "b1",
@@ -34,6 +37,18 @@ const starterData: Entry[] = [
     ]
   }
 ];
+
+const getWeekKey = (dateString: string) => {
+  const date = new Date(dateString);
+  if (Number.isNaN(date.getTime())) return "";
+
+  const start = new Date(date.getFullYear(), 0, 1);
+  const diff = date.getTime() - start.getTime();
+  const oneWeek = 1000 * 60 * 60 * 24 * 7;
+  const week = Math.ceil((diff + start.getDay() * 86400000) / oneWeek);
+
+  return `${date.getFullYear()} / W${String(week).padStart(2, "0")}`;
+};
 
 export default function Home() {
   const galleryRef = useRef<HTMLElement>(null);
@@ -66,7 +81,6 @@ export default function Home() {
 
     const animate = () => {
       targetX.current = window.scrollY;
-
       currentX.current += (targetX.current - currentX.current) * 0.08;
 
       if (galleryRef.current) {
@@ -83,12 +97,16 @@ export default function Home() {
     };
   }, [selectedId]);
 
+  const sortedEntries = useMemo(() => {
+    return [...entries].sort((a, b) => a.date.localeCompare(b.date));
+  }, [entries]);
+
+  const selected = entries.find((entry) => entry.id === selectedId);
+
   const saveEntries = (next: Entry[]) => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
     setEntries(next);
   };
-
-  const selected = entries.find((entry) => entry.id === selectedId);
 
   const resizeImage = (file: File): Promise<string> => {
     return new Promise((resolve) => {
@@ -100,14 +118,12 @@ export default function Home() {
         img.onload = () => {
           const canvas = document.createElement("canvas");
           const max = 1600;
-
           const ratio = Math.min(max / img.width, max / img.height, 1);
 
           canvas.width = img.width * ratio;
           canvas.height = img.height * ratio;
 
           const ctx = canvas.getContext("2d");
-
           ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
 
           resolve(canvas.toDataURL("image/jpeg", 0.82));
@@ -136,18 +152,18 @@ export default function Home() {
 
     setForm((prev) => ({
       ...prev,
-      blocks: prev.blocks.map((b) =>
-        b.id === blockId
+      blocks: prev.blocks.map((block) =>
+        block.id === blockId
           ? {
-              ...b,
+              ...block,
               content: image
             }
-          : b
+          : block
       )
     }));
   };
 
-  const addBlock = (type: "text" | "image" | "drawing") => {
+  const addBlock = (type: BlockType) => {
     setForm((prev) => ({
       ...prev,
       blocks: [
@@ -161,20 +177,57 @@ export default function Home() {
     }));
   };
 
+  const updateBlockText = (blockId: string, content: string) => {
+    setForm((prev) => ({
+      ...prev,
+      blocks: prev.blocks.map((block) =>
+        block.id === blockId ? { ...block, content } : block
+      )
+    }));
+  };
+
+  const removeBlock = (blockId: string) => {
+    setForm((prev) => ({
+      ...prev,
+      blocks: prev.blocks.filter((block) => block.id !== blockId)
+    }));
+  };
+
+  const moveBlock = (blockId: string, direction: "up" | "down") => {
+    setForm((prev) => {
+      const blocks = [...prev.blocks];
+      const index = blocks.findIndex((block) => block.id === blockId);
+      if (index === -1) return prev;
+
+      const targetIndex = direction === "up" ? index - 1 : index + 1;
+      if (targetIndex < 0 || targetIndex >= blocks.length) return prev;
+
+      const current = blocks[index];
+      blocks[index] = blocks[targetIndex];
+      blocks[targetIndex] = current;
+
+      return {
+        ...prev,
+        blocks
+      };
+    });
+  };
+
   const saveEntry = () => {
-    if (!form.title) return;
+    if (!form.title.trim()) return;
 
     const id = form.id || crypto.randomUUID();
 
-    const entry = {
+    const entry: Entry = {
       ...form,
-      id
+      id,
+      date: form.date || new Date().toISOString().slice(0, 10)
     };
 
-    const exists = entries.find((e) => e.id === id);
+    const exists = entries.find((item) => item.id === id);
 
     if (exists) {
-      saveEntries(entries.map((e) => (e.id === id ? entry : e)));
+      saveEntries(entries.map((item) => (item.id === id ? entry : item)));
     } else {
       saveEntries([...entries, entry]);
     }
@@ -186,8 +239,7 @@ export default function Home() {
   const deleteEntry = () => {
     if (!selected) return;
 
-    saveEntries(entries.filter((e) => e.id !== selected.id));
-
+    saveEntries(entries.filter((entry) => entry.id !== selected.id));
     setSelectedId("");
     setEditorOpen(false);
   };
@@ -208,7 +260,11 @@ export default function Home() {
   const editCurrent = () => {
     if (!selected) return;
 
-    setForm(selected);
+    setForm({
+      ...selected,
+      blocks: [...selected.blocks]
+    });
+
     setEditorOpen(true);
   };
 
@@ -229,25 +285,39 @@ export default function Home() {
       {!selected && (
         <>
           <section className="gallery" ref={galleryRef}>
-            {entries.map((entry) => (
-              <article
-                key={entry.id}
-                className="card"
-                onClick={() => setSelectedId(entry.id)}
-              >
-                {entry.thumbnail ? (
-                  <img src={entry.thumbnail} alt="" />
-                ) : (
-                  <div className="placeholder" />
-                )}
-              </article>
-            ))}
+            {sortedEntries.map((entry, index) => {
+              const previous = sortedEntries[index - 1];
+              const week = getWeekKey(entry.date);
+              const previousWeek = previous ? getWeekKey(previous.date) : "";
+
+              return (
+                <article
+                  key={entry.id}
+                  className="timelineItem"
+                  onClick={() => setSelectedId(entry.id)}
+                >
+                  {week !== previousWeek && (
+                    <div className="weekMark">
+                      <span>{week}</span>
+                    </div>
+                  )}
+
+                  <div className="card">
+                    {entry.thumbnail ? (
+                      <img src={entry.thumbnail} alt="" />
+                    ) : (
+                      <div className="placeholder" />
+                    )}
+                  </div>
+                </article>
+              );
+            })}
           </section>
 
           <div
             className="scrollSpace"
             style={{
-              height: `${Math.max(entries.length * 900, 2000)}px`
+              height: `${Math.max(sortedEntries.length * 900, 2200)}px`
             }}
           />
         </>
@@ -259,9 +329,19 @@ export default function Home() {
             back
           </button>
 
-          <h1>{selected.title}</h1>
+          <div className="detailHero">
+            {selected.thumbnail ? (
+              <img src={selected.thumbnail} alt="" />
+            ) : (
+              <div className="placeholder" />
+            )}
+          </div>
 
-          <p className="date">{selected.date}</p>
+          <div className="detailMeta">
+            <p className="date">{selected.date}</p>
+            <h1>{selected.title}</h1>
+            <p className="tag">#{selected.tag}</p>
+          </div>
 
           {selected.blocks.map((block) => {
             if (block.type === "text") {
@@ -295,10 +375,10 @@ export default function Home() {
           <input
             type="date"
             value={form.date}
-            onChange={(e) =>
+            onChange={(event) =>
               setForm({
                 ...form,
-                date: e.target.value
+                date: event.target.value
               })
             }
           />
@@ -306,10 +386,10 @@ export default function Home() {
           <input
             placeholder="title"
             value={form.title}
-            onChange={(e) =>
+            onChange={(event) =>
               setForm({
                 ...form,
-                title: e.target.value
+                title: event.target.value
               })
             }
           />
@@ -317,10 +397,10 @@ export default function Home() {
           <input
             placeholder="tag"
             value={form.tag}
-            onChange={(e) =>
+            onChange={(event) =>
               setForm({
                 ...form,
-                tag: e.target.value
+                tag: event.target.value
               })
             }
           />
@@ -330,11 +410,13 @@ export default function Home() {
             <input
               type="file"
               accept="image/*"
-              onChange={(e) => uploadThumbnail(e.target.files?.[0])}
+              onChange={(event) => uploadThumbnail(event.target.files?.[0])}
             />
           </label>
 
-          {form.thumbnail && <img className="editorPreview" src={form.thumbnail} alt="" />}
+          {form.thumbnail && (
+            <img className="editorPreview" src={form.thumbnail} alt="" />
+          )}
 
           <div className="blockButtons">
             <button onClick={() => addBlock("text")}>+ text</button>
@@ -342,25 +424,24 @@ export default function Home() {
             <button onClick={() => addBlock("drawing")}>+ drawing</button>
           </div>
 
-          {form.blocks.map((block) => (
+          {form.blocks.map((block, index) => (
             <div className="editorBlock" key={block.id}>
-              <span>{block.type}</span>
+              <div className="blockHeader">
+                <span>
+                  {index + 1}. {block.type}
+                </span>
+
+                <div>
+                  <button onClick={() => moveBlock(block.id, "up")}>↑</button>
+                  <button onClick={() => moveBlock(block.id, "down")}>↓</button>
+                </div>
+              </div>
 
               {block.type === "text" ? (
                 <textarea
                   value={block.content}
-                  onChange={(e) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      blocks: prev.blocks.map((b) =>
-                        b.id === block.id
-                          ? {
-                              ...b,
-                              content: e.target.value
-                            }
-                          : b
-                      )
-                    }))
+                  onChange={(event) =>
+                    updateBlockText(block.id, event.target.value)
                   }
                 />
               ) : (
@@ -368,30 +449,21 @@ export default function Home() {
                   <input
                     type="file"
                     accept="image/*"
-                    onChange={(e) =>
-                      e.target.files?.[0] &&
-                      uploadBlockImage(e.target.files[0], block.id)
+                    onChange={(event) =>
+                      event.target.files?.[0] &&
+                      uploadBlockImage(event.target.files[0], block.id)
                     }
                   />
 
                   {block.content && (
-                    <img
-                      className="editorPreview"
-                      src={block.content}
-                      alt=""
-                    />
+                    <img className="editorPreview" src={block.content} alt="" />
                   )}
                 </>
               )}
 
               <button
                 className="removeBlock"
-                onClick={() =>
-                  setForm((prev) => ({
-                    ...prev,
-                    blocks: prev.blocks.filter((b) => b.id !== block.id)
-                  }))
-                }
+                onClick={() => removeBlock(block.id)}
               >
                 remove
               </button>
