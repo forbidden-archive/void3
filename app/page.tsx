@@ -65,11 +65,13 @@ export default function Home() {
   }, [entries]);
 
   const selected = sortedEntries.find((entry) => entry.id === selectedId);
+
   const selectedIndex = sortedEntries.findIndex(
     (entry) => entry.id === selectedId
   );
 
   const prevEntry = selectedIndex > 0 ? sortedEntries[selectedIndex - 1] : null;
+
   const nextEntry =
     selectedIndex >= 0 && selectedIndex < sortedEntries.length - 1
       ? sortedEntries[selectedIndex + 1]
@@ -125,8 +127,6 @@ export default function Home() {
       startX: event.clientX,
       lastX: event.clientX
     };
-
-    event.currentTarget.setPointerCapture(event.pointerId);
   };
 
   const onGalleryPointerMove = (event: React.PointerEvent<HTMLElement>) => {
@@ -135,13 +135,13 @@ export default function Home() {
     const dx = event.clientX - dragRef.current.lastX;
     const totalDx = event.clientX - dragRef.current.startX;
 
-    if (Math.abs(totalDx) > 6) {
+    if (Math.abs(totalDx) > 8) {
       dragRef.current.moved = true;
     }
 
     dragRef.current.lastX = event.clientX;
 
-    const sensitivity = window.innerWidth <= 900 ? 3.2 : 1;
+    const sensitivity = window.innerWidth <= 900 ? 3.8 : 1;
 
     targetX.current = Math.min(
       getMaxScrollX(),
@@ -149,15 +149,12 @@ export default function Home() {
     );
   };
 
-  const onGalleryPointerUp = (event: React.PointerEvent<HTMLElement>) => {
-    try {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    } catch {}
+  const onGalleryPointerUp = () => {
+    dragRef.current.active = false;
 
     setTimeout(() => {
-      dragRef.current.active = false;
       dragRef.current.moved = false;
-    }, 0);
+    }, 120);
   };
 
   const loadEntries = async () => {
@@ -395,12 +392,13 @@ export default function Home() {
             onPointerMove={onGalleryPointerMove}
             onPointerUp={onGalleryPointerUp}
             onPointerCancel={onGalleryPointerUp}
+            onPointerLeave={onGalleryPointerUp}
           >
             {sortedEntries.map((entry) => (
               <article
                 key={entry.id}
                 className="timelineItem"
-                onPointerUp={() => {
+                onClick={() => {
                   if (!dragRef.current.moved) {
                     setSelectedId(entry.id);
                   }
