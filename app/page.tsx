@@ -380,12 +380,10 @@ export default function Home() {
           >
             {sortedEntries.map((entry) => (
               <article
-                key={entry.id}
-                className="timelineItem"
-                onClick={() => {
-                  if (!dragRef.current.active) setSelectedId(entry.id);
-                }}
-              >
+  key={entry.id}
+  className="timelineItem"
+  onClick={() => setSelectedId(entry.id)}
+>
                 <div className="card">
                   {entry.thumbnail ? (
                     <img src={entry.thumbnail} alt="" />
