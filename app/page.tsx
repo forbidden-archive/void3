@@ -38,8 +38,10 @@ export default function Home() {
   const currentX = useRef(0);
   const targetX = useRef(0);
   const rafRef = useRef<number | null>(null);
+
   const dragRef = useRef({
     active: false,
+    moved: false,
     startX: 0,
     lastX: 0
   });
@@ -63,7 +65,10 @@ export default function Home() {
   }, [entries]);
 
   const selected = sortedEntries.find((entry) => entry.id === selectedId);
-  const selectedIndex = sortedEntries.findIndex((entry) => entry.id === selectedId);
+  const selectedIndex = sortedEntries.findIndex(
+    (entry) => entry.id === selectedId
+  );
+
   const prevEntry = selectedIndex > 0 ? sortedEntries[selectedIndex - 1] : null;
   const nextEntry =
     selectedIndex >= 0 && selectedIndex < sortedEntries.length - 1
@@ -78,9 +83,7 @@ export default function Home() {
     if (selectedId || view !== "timeline") return;
 
     const animate = () => {
-      const isMobile = window.innerWidth <= 900;
-
-      if (!isMobile) {
+      if (window.innerWidth > 900) {
         targetX.current = window.scrollY;
       }
 
@@ -104,7 +107,12 @@ export default function Home() {
     const cardWidth = window.innerWidth <= 900 ? 280 : 520;
     const gap = window.innerWidth <= 900 ? 40 : 120;
     const padding = window.innerWidth <= 900 ? 24 : 120;
-    const total = sortedEntries.length * cardWidth + Math.max(0, sortedEntries.length - 1) * gap + padding * 2;
+
+    const total =
+      sortedEntries.length * cardWidth +
+      Math.max(0, sortedEntries.length - 1) * gap +
+      padding * 2;
+
     return Math.max(0, total - window.innerWidth);
   };
 
@@ -113,6 +121,7 @@ export default function Home() {
 
     dragRef.current = {
       active: true,
+      moved: false,
       startX: event.clientX,
       lastX: event.clientX
     };
@@ -121,25 +130,34 @@ export default function Home() {
   };
 
   const onGalleryPointerMove = (event: React.PointerEvent<HTMLElement>) => {
-  if (!dragRef.current.active || view !== "timeline") return;
+    if (!dragRef.current.active || view !== "timeline") return;
 
-  const dx = event.clientX - dragRef.current.lastX;
-  dragRef.current.lastX = event.clientX;
+    const dx = event.clientX - dragRef.current.lastX;
+    const totalDx = event.clientX - dragRef.current.startX;
 
-  const sensitivity = window.innerWidth <= 900 ? 2.8 : 1;
+    if (Math.abs(totalDx) > 6) {
+      dragRef.current.moved = true;
+    }
 
-  targetX.current = Math.min(
-    getMaxScrollX(),
-    Math.max(0, targetX.current - dx * sensitivity)
-  );
-};
+    dragRef.current.lastX = event.clientX;
+
+    const sensitivity = window.innerWidth <= 900 ? 3.2 : 1;
+
+    targetX.current = Math.min(
+      getMaxScrollX(),
+      Math.max(0, targetX.current - dx * sensitivity)
+    );
+  };
 
   const onGalleryPointerUp = (event: React.PointerEvent<HTMLElement>) => {
-    dragRef.current.active = false;
-
     try {
       event.currentTarget.releasePointerCapture(event.pointerId);
     } catch {}
+
+    setTimeout(() => {
+      dragRef.current.active = false;
+      dragRef.current.moved = false;
+    }, 0);
   };
 
   const loadEntries = async () => {
@@ -380,10 +398,14 @@ export default function Home() {
           >
             {sortedEntries.map((entry) => (
               <article
-  key={entry.id}
-  className="timelineItem"
-  onClick={() => setSelectedId(entry.id)}
->
+                key={entry.id}
+                className="timelineItem"
+                onPointerUp={() => {
+                  if (!dragRef.current.moved) {
+                    setSelectedId(entry.id);
+                  }
+                }}
+              >
                 <div className="card">
                   {entry.thumbnail ? (
                     <img src={entry.thumbnail} alt="" />
