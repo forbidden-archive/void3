@@ -121,16 +121,18 @@ export default function Home() {
   };
 
   const onGalleryPointerMove = (event: React.PointerEvent<HTMLElement>) => {
-    if (!dragRef.current.active || view !== "timeline") return;
+  if (!dragRef.current.active || view !== "timeline") return;
 
-    const dx = event.clientX - dragRef.current.lastX;
-    dragRef.current.lastX = event.clientX;
+  const dx = event.clientX - dragRef.current.lastX;
+  dragRef.current.lastX = event.clientX;
 
-    targetX.current = Math.min(
-      getMaxScrollX(),
-      Math.max(0, targetX.current - dx)
-    );
-  };
+  const sensitivity = window.innerWidth <= 900 ? 2.8 : 1;
+
+  targetX.current = Math.min(
+    getMaxScrollX(),
+    Math.max(0, targetX.current - dx * sensitivity)
+  );
+};
 
   const onGalleryPointerUp = (event: React.PointerEvent<HTMLElement>) => {
     dragRef.current.active = false;
