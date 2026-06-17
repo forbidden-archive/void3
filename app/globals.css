@@ -190,14 +190,21 @@ img {
 }
 
 .detailHero {
-  width: min(1000px, 86vw);
+  width: min(700px, 80vw);
+  max-height: 75vh;
+
   margin: 0 auto 64px;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .detailHero img,
 .detailHero .placeholder {
   width: 100%;
-  height: auto;
+  max-height: 75vh;
+
   object-fit: contain;
 }
 
