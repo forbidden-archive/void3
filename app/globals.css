@@ -87,8 +87,6 @@ img {
   text-decoration: underline;
 }
 
-/* timeline */
-
 .gallery {
   position: fixed;
   left: 0;
@@ -132,8 +130,6 @@ img {
   width: 1px;
 }
 
-/* gallery view */
-
 .gridGallery {
   padding: 140px 60px 120px;
   display: grid;
@@ -175,8 +171,6 @@ img {
   font-size: 12px;
 }
 
-/* detail */
-
 .detail {
   width: min(1200px, 92vw);
   margin: 0 auto;
@@ -192,9 +186,7 @@ img {
 .detailHero {
   width: min(700px, 80vw);
   max-height: 75vh;
-
   margin: 0 auto 64px;
-
   display: flex;
   justify-content: center;
   align-items: center;
@@ -204,7 +196,6 @@ img {
 .detailHero .placeholder {
   width: 100%;
   max-height: 75vh;
-
   object-fit: contain;
 }
 
@@ -220,7 +211,7 @@ img {
 }
 
 .detailMeta h1 {
-  font-size: clamp(36px, 5vw, 72px);
+  font-size: clamp(32px, 4vw, 64px);
   font-weight: 400;
   margin: 0;
   line-height: 1;
@@ -249,9 +240,8 @@ img {
   margin: 120px auto;
   line-height: 2.2;
   font-size: 18px;
+  white-space: pre-wrap;
 }
-
-/* editor */
 
 .editor {
   position: fixed;
