@@ -1,4 +1,5 @@
 {
+  "@supabase/supabase-js": "latest"
   "name": "void-tower",
   "version": "0.1.0",
   "private": true,
