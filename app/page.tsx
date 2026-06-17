@@ -38,6 +38,11 @@ export default function Home() {
   const currentX = useRef(0);
   const targetX = useRef(0);
   const rafRef = useRef<number | null>(null);
+  const dragRef = useRef({
+    active: false,
+    startX: 0,
+    lastX: 0
+  });
 
   const [entries, setEntries] = useState<Entry[]>([]);
   const [selectedId, setSelectedId] = useState("");
@@ -53,11 +58,17 @@ export default function Home() {
     blocks: []
   });
 
-  const selected = entries.find((entry) => entry.id === selectedId);
-
   const sortedEntries = useMemo(() => {
     return [...entries].sort((a, b) => a.date.localeCompare(b.date));
   }, [entries]);
+
+  const selected = sortedEntries.find((entry) => entry.id === selectedId);
+  const selectedIndex = sortedEntries.findIndex((entry) => entry.id === selectedId);
+  const prevEntry = selectedIndex > 0 ? sortedEntries[selectedIndex - 1] : null;
+  const nextEntry =
+    selectedIndex >= 0 && selectedIndex < sortedEntries.length - 1
+      ? sortedEntries[selectedIndex + 1]
+      : null;
 
   useEffect(() => {
     loadEntries();
@@ -67,7 +78,12 @@ export default function Home() {
     if (selectedId || view !== "timeline") return;
 
     const animate = () => {
-      targetX.current = window.scrollY;
+      const isMobile = window.innerWidth <= 900;
+
+      if (!isMobile) {
+        targetX.current = window.scrollY;
+      }
+
       currentX.current += (targetX.current - currentX.current) * 0.08;
 
       if (galleryRef.current) {
@@ -83,6 +99,46 @@ export default function Home() {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
   }, [selectedId, view]);
+
+  const getMaxScrollX = () => {
+    const cardWidth = window.innerWidth <= 900 ? 280 : 520;
+    const gap = window.innerWidth <= 900 ? 40 : 120;
+    const padding = window.innerWidth <= 900 ? 24 : 120;
+    const total = sortedEntries.length * cardWidth + Math.max(0, sortedEntries.length - 1) * gap + padding * 2;
+    return Math.max(0, total - window.innerWidth);
+  };
+
+  const onGalleryPointerDown = (event: React.PointerEvent<HTMLElement>) => {
+    if (view !== "timeline") return;
+
+    dragRef.current = {
+      active: true,
+      startX: event.clientX,
+      lastX: event.clientX
+    };
+
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const onGalleryPointerMove = (event: React.PointerEvent<HTMLElement>) => {
+    if (!dragRef.current.active || view !== "timeline") return;
+
+    const dx = event.clientX - dragRef.current.lastX;
+    dragRef.current.lastX = event.clientX;
+
+    targetX.current = Math.min(
+      getMaxScrollX(),
+      Math.max(0, targetX.current - dx)
+    );
+  };
+
+  const onGalleryPointerUp = (event: React.PointerEvent<HTMLElement>) => {
+    dragRef.current.active = false;
+
+    try {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    } catch {}
+  };
 
   const loadEntries = async () => {
     const { data, error } = await supabase
@@ -312,12 +368,21 @@ export default function Home() {
 
       {!selected && view === "timeline" && (
         <>
-          <section className="gallery" ref={galleryRef}>
+          <section
+            className="gallery"
+            ref={galleryRef}
+            onPointerDown={onGalleryPointerDown}
+            onPointerMove={onGalleryPointerMove}
+            onPointerUp={onGalleryPointerUp}
+            onPointerCancel={onGalleryPointerUp}
+          >
             {sortedEntries.map((entry) => (
               <article
                 key={entry.id}
                 className="timelineItem"
-                onClick={() => setSelectedId(entry.id)}
+                onClick={() => {
+                  if (!dragRef.current.active) setSelectedId(entry.id);
+                }}
               >
                 <div className="card">
                   {entry.thumbnail ? (
@@ -366,6 +431,21 @@ export default function Home() {
 
       {selected && (
         <section className="detail">
+          <div className="detailNav">
+            <button
+              disabled={!prevEntry}
+              onClick={() => prevEntry && setSelectedId(prevEntry.id)}
+            >
+              prev
+            </button>
+            <button
+              disabled={!nextEntry}
+              onClick={() => nextEntry && setSelectedId(nextEntry.id)}
+            >
+              next
+            </button>
+          </div>
+
           <div className="detailHero">
             {selected.thumbnail ? (
               <img src={selected.thumbnail} alt="" />
