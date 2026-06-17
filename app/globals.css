@@ -224,10 +224,28 @@ img {
 }
 
 .contentImage {
-  width: 100%;
-  height: auto;
-  margin-top: 80px;
-  margin-bottom: 80px;
+  width: min(700px, 80vw);
+
+  max-height: 75vh;
+
+  margin: 80px auto;
+
+  display: block;
+
+  object-fit: contain;
+
+}
+
+.drawingImage {
+
+  width: min(700px, 80vw);
+
+  max-height: 75vh;
+
+  margin: 80px auto;
+
+  display: block;
+
   object-fit: contain;
 }
 
