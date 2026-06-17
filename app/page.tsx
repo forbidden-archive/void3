@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { supabase } from "../lib/supabase";
 
+type ViewMode = "timeline" | "gallery";
 type BlockType = "text" | "image" | "drawing";
 
 type Block = {
@@ -19,46 +21,16 @@ type Entry = {
   blocks: Block[];
 };
 
-const STORAGE_KEY = "void-archive-v7";
-
-const starterData: Entry[] = [
-  {
-    id: "1",
-    date: "2026-06-05",
-    title: "VOID",
-    tag: "concept",
-    thumbnail: "",
-    blocks: [
-      {
-        id: "b1",
-        type: "text",
-        content: "社会に価値を与えたことで社会から切り離された存在。"
-      }
-    ]
-  }
-];
-
-const getWeekKey = (dateString: string) => {
-  const date = new Date(dateString);
-  if (Number.isNaN(date.getTime())) return "";
-
-  const start = new Date(date.getFullYear(), 0, 1);
-  const diff = date.getTime() - start.getTime();
-  const oneWeek = 1000 * 60 * 60 * 24 * 7;
-  const week = Math.ceil((diff + start.getDay() * 86400000) / oneWeek);
-
-  return `${date.getFullYear()} / W${String(week).padStart(2, "0")}`;
-};
-
 export default function Home() {
   const galleryRef = useRef<HTMLElement>(null);
   const currentX = useRef(0);
   const targetX = useRef(0);
   const rafRef = useRef<number | null>(null);
 
-  const [entries, setEntries] = useState<Entry[]>(starterData);
+  const [entries, setEntries] = useState<Entry[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [editorOpen, setEditorOpen] = useState(false);
+  const [view, setView] = useState<ViewMode>("timeline");
 
   const [form, setForm] = useState<Entry>({
     id: "",
@@ -69,15 +41,18 @@ export default function Home() {
     blocks: []
   });
 
+  const selected = entries.find((entry) => entry.id === selectedId);
+
+  const sortedEntries = useMemo(() => {
+    return [...entries].sort((a, b) => a.date.localeCompare(b.date));
+  }, [entries]);
+
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      setEntries(JSON.parse(saved));
-    }
+    loadEntries();
   }, []);
 
   useEffect(() => {
-    if (selectedId) return;
+    if (selectedId || view !== "timeline") return;
 
     const animate = () => {
       targetX.current = window.scrollY;
@@ -95,72 +70,89 @@ export default function Home() {
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, [selectedId]);
+  }, [selectedId, view]);
 
-  const sortedEntries = useMemo(() => {
-    return [...entries].sort((a, b) => a.date.localeCompare(b.date));
-  }, [entries]);
+  const loadEntries = async () => {
+    const { data, error } = await supabase
+      .from("entries")
+      .select("*")
+      .order("date", { ascending: true });
 
-  const selected = entries.find((entry) => entry.id === selectedId);
+    if (error) {
+      console.error(error);
+      alert("読み込みできませんでした");
+      return;
+    }
 
-  const saveEntries = (next: Entry[]) => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-    setEntries(next);
+    setEntries((data || []) as Entry[]);
   };
 
-  const resizeImage = (file: File): Promise<string> => {
-    return new Promise((resolve) => {
-      const reader = new FileReader();
+  const uploadImageToSupabase = async (file: File) => {
+    const ext = file.name.split(".").pop();
+    const fileName = `${crypto.randomUUID()}.${ext}`;
+    const filePath = `images/${fileName}`;
 
-      reader.onload = () => {
-        const img = new Image();
+    const { error } = await supabase.storage
+      .from("archive-images")
+      .upload(filePath, file, {
+        cacheControl: "3600",
+        upsert: false
+      });
 
-        img.onload = () => {
-          const canvas = document.createElement("canvas");
-          const max = 1600;
-          const ratio = Math.min(max / img.width, max / img.height, 1);
+    if (error) {
+      console.error(error);
+      alert("画像アップロードに失敗しました");
+      return "";
+    }
 
-          canvas.width = img.width * ratio;
-          canvas.height = img.height * ratio;
+    const { data } = supabase.storage
+      .from("archive-images")
+      .getPublicUrl(filePath);
 
-          const ctx = canvas.getContext("2d");
-          ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-          resolve(canvas.toDataURL("image/jpeg", 0.82));
-        };
-
-        img.src = reader.result as string;
-      };
-
-      reader.readAsDataURL(file);
-    });
+    return data.publicUrl;
   };
 
   const uploadThumbnail = async (file?: File) => {
     if (!file) return;
 
-    const image = await resizeImage(file);
+    const imageUrl = await uploadImageToSupabase(file);
+    if (!imageUrl) return;
 
     setForm((prev) => ({
       ...prev,
-      thumbnail: image
+      thumbnail: imageUrl
     }));
   };
 
   const uploadBlockImage = async (file: File, blockId: string) => {
-    const image = await resizeImage(file);
+    const imageUrl = await uploadImageToSupabase(file);
+    if (!imageUrl) return;
 
     setForm((prev) => ({
       ...prev,
       blocks: prev.blocks.map((block) =>
-        block.id === blockId
-          ? {
-              ...block,
-              content: image
-            }
-          : block
+        block.id === blockId ? { ...block, content: imageUrl } : block
       )
     }));
+  };
+
+  const saveEntryToSupabase = async (entry: Entry) => {
+    const { error } = await supabase.from("entries").upsert({
+      id: entry.id,
+      date: entry.date,
+      title: entry.title,
+      tag: entry.tag,
+      thumbnail: entry.thumbnail,
+      blocks: entry.blocks
+    });
+
+    if (error) {
+      console.error(error);
+      alert("保存できませんでした");
+      return;
+    }
+
+    await loadEntries();
   };
 
   const addBlock = (type: BlockType) => {
@@ -213,7 +205,7 @@ export default function Home() {
     });
   };
 
-  const saveEntry = () => {
+  const saveEntry = async () => {
     if (!form.title.trim()) return;
 
     const id = form.id || crypto.randomUUID();
@@ -224,22 +216,27 @@ export default function Home() {
       date: form.date || new Date().toISOString().slice(0, 10)
     };
 
-    const exists = entries.find((item) => item.id === id);
-
-    if (exists) {
-      saveEntries(entries.map((item) => (item.id === id ? entry : item)));
-    } else {
-      saveEntries([...entries, entry]);
-    }
+    await saveEntryToSupabase(entry);
 
     setSelectedId(id);
     setEditorOpen(false);
   };
 
-  const deleteEntry = () => {
+  const deleteEntry = async () => {
     if (!selected) return;
 
-    saveEntries(entries.filter((entry) => entry.id !== selected.id));
+    const { error } = await supabase
+      .from("entries")
+      .delete()
+      .eq("id", selected.id);
+
+    if (error) {
+      console.error(error);
+      alert("削除できませんでした");
+      return;
+    }
+
+    await loadEntries();
     setSelectedId("");
     setEditorOpen(false);
   };
@@ -271,7 +268,26 @@ export default function Home() {
   return (
     <main className={selected ? "page detailMode" : "page"}>
       <header className="top">
-        <button>contact us</button>
+        {!selected ? (
+          <div className="viewSwitch">
+            <button
+              className={view === "timeline" ? "active" : ""}
+              onClick={() => setView("timeline")}
+            >
+              timeline
+            </button>
+            <button
+              className={view === "gallery" ? "active" : ""}
+              onClick={() => setView("gallery")}
+            >
+              gallery
+            </button>
+          </div>
+        ) : (
+          <button className="backTop" onClick={() => setSelectedId("")}>
+            back
+          </button>
+        )}
 
         <div className="logo">void</div>
 
@@ -282,36 +298,24 @@ export default function Home() {
         )}
       </header>
 
-      {!selected && (
+      {!selected && view === "timeline" && (
         <>
           <section className="gallery" ref={galleryRef}>
-            {sortedEntries.map((entry, index) => {
-              const previous = sortedEntries[index - 1];
-              const week = getWeekKey(entry.date);
-              const previousWeek = previous ? getWeekKey(previous.date) : "";
-
-              return (
-                <article
-                  key={entry.id}
-                  className="timelineItem"
-                  onClick={() => setSelectedId(entry.id)}
-                >
-                  {week !== previousWeek && (
-                    <div className="weekMark">
-                      <span>{week}</span>
-                    </div>
+            {sortedEntries.map((entry) => (
+              <article
+                key={entry.id}
+                className="timelineItem"
+                onClick={() => setSelectedId(entry.id)}
+              >
+                <div className="card">
+                  {entry.thumbnail ? (
+                    <img src={entry.thumbnail} alt="" />
+                  ) : (
+                    <div className="placeholder" />
                   )}
-
-                  <div className="card">
-                    {entry.thumbnail ? (
-                      <img src={entry.thumbnail} alt="" />
-                    ) : (
-                      <div className="placeholder" />
-                    )}
-                  </div>
-                </article>
-              );
-            })}
+                </div>
+              </article>
+            ))}
           </section>
 
           <div
@@ -323,12 +327,33 @@ export default function Home() {
         </>
       )}
 
+      {!selected && view === "gallery" && (
+        <section className="gridGallery">
+          {sortedEntries.map((entry) => (
+            <article
+              key={entry.id}
+              className="gridCard"
+              onClick={() => setSelectedId(entry.id)}
+            >
+              <div className="gridImage">
+                {entry.thumbnail ? (
+                  <img src={entry.thumbnail} alt="" />
+                ) : (
+                  <div className="placeholder" />
+                )}
+              </div>
+
+              <div className="gridMeta">
+                <p>{entry.title}</p>
+                <span>{entry.date}</span>
+              </div>
+            </article>
+          ))}
+        </section>
+      )}
+
       {selected && (
         <section className="detail">
-          <button className="back" onClick={() => setSelectedId("")}>
-            back
-          </button>
-
           <div className="detailHero">
             {selected.thumbnail ? (
               <img src={selected.thumbnail} alt="" />
