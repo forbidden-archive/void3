@@ -21,18 +21,6 @@ type Entry = {
   blocks: Block[];
 };
 
-const getNowForInput = () => {
-  const now = new Date();
-  const offset = now.getTimezoneOffset();
-  const local = new Date(now.getTime() - offset * 60 * 1000);
-  return local.toISOString().slice(0, 16);
-};
-
-const formatDate = (value: string) => {
-  if (!value) return "";
-  return value.replace("T", " ");
-};
-
 export default function Home() {
   const galleryRef = useRef<HTMLElement>(null);
   const currentX = useRef(0);
@@ -225,7 +213,7 @@ export default function Home() {
     const entry: Entry = {
       ...form,
       id,
-      date: form.date || getNowForInput()
+      date: form.date || new Date().toISOString().slice(0, 10)
     };
 
     await saveEntryToSupabase(entry);
@@ -256,7 +244,7 @@ export default function Home() {
   const createNew = () => {
     setForm({
       id: "",
-      date: getNowForInput(),
+      date: new Date().toISOString().slice(0, 10),
       title: "",
       tag: "",
       thumbnail: "",
@@ -357,7 +345,7 @@ export default function Home() {
 
               <div className="gridMeta">
                 <p>{entry.title}</p>
-                <span>{formatDate(entry.date)}</span>
+                <span>{entry.date}</span>
               </div>
             </article>
           ))}
@@ -375,7 +363,7 @@ export default function Home() {
           </div>
 
           <div className="detailMeta">
-            <p className="date">{formatDate(selected.date)}</p>
+            <p className="date">{selected.date}</p>
             <h1>{selected.title}</h1>
             <p className="tag">#{selected.tag}</p>
           </div>
@@ -410,7 +398,7 @@ export default function Home() {
           <button onClick={() => setEditorOpen(false)}>close</button>
 
           <input
-            type="datetime-local"
+            type="date"
             value={form.date}
             onChange={(event) =>
               setForm({
