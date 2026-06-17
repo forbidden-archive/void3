@@ -441,3 +441,12 @@ align-items: center;
     width: 94vw;
   }
 }
+.weekMark,
+
+.weekMark::before,
+
+.weekMark span {
+
+  display: none !important;
+
+}
