@@ -98,6 +98,8 @@ img {
   padding-left: 120px;
   padding-right: 120px;
   will-change: transform;
+  touch-action: pan-x;
+  user-select: none;
 }
 
 .timelineItem {
@@ -183,6 +185,31 @@ img {
   color: #777;
 }
 
+.detailNav {
+  position: fixed;
+  left: 48px;
+  right: 48px;
+  top: 50%;
+  z-index: 160;
+  display: flex;
+  justify-content: space-between;
+  pointer-events: none;
+}
+
+.detailNav button {
+  pointer-events: auto;
+  color: #777;
+  background: rgba(250, 250, 247, 0.82);
+  backdrop-filter: blur(10px);
+  border-radius: 999px;
+  padding: 10px 16px;
+}
+
+.detailNav button:disabled {
+  opacity: 0.2;
+  cursor: default;
+}
+
 .detailHero {
   width: min(700px, 80vw);
   max-height: 75vh;
@@ -225,31 +252,17 @@ img {
 
 .contentImage {
   width: min(700px, 80vw);
-
   max-height: 75vh;
-
   margin: 80px auto;
-
   display: block;
-
   object-fit: contain;
-
 }
 
 .drawingImage {
-
   width: min(700px, 80vw);
-
   max-height: 75vh;
-
   margin: 80px auto;
-
   display: block;
-
-  object-fit: contain;
-}
-
-.drawingImage {
   object-fit: contain;
 }
 
@@ -368,6 +381,23 @@ img {
 }
 
 @media (max-width: 900px) {
+  html,
+  body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .page {
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  .detailMode {
+    overflow: hidden;
+  }
+
   .top {
     padding: 28px 20px;
   }
@@ -378,6 +408,10 @@ img {
     padding-right: 24px;
   }
 
+  .scrollSpace {
+    display: none;
+  }
+
   .card,
   .card img,
   .placeholder {
@@ -386,16 +420,40 @@ img {
   }
 
   .gridGallery {
+    height: 100vh;
+    overflow-y: auto;
     padding: 120px 20px 80px;
     grid-template-columns: repeat(2, 1fr);
     gap: 40px 20px;
   }
 
-  .editor {
-    width: 100%;
-  }
-
   .detail {
     width: 94vw;
+    height: 100vh;
+    overflow-y: auto;
+    padding-top: 110px;
+    padding-bottom: 180px;
+  }
+
+  .detailHero {
+    width: min(620px, 86vw);
+    max-height: 65vh;
+  }
+
+  .detailHero img,
+  .detailHero .placeholder,
+  .contentImage,
+  .drawingImage {
+    width: min(620px, 86vw);
+    max-height: 65vh;
+  }
+
+  .detailNav {
+    left: 20px;
+    right: 20px;
+  }
+
+  .editor {
+    width: 100%;
   }
 }
