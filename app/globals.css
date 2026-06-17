@@ -114,31 +114,6 @@ img {
 
 }
 
-.weekMark {
-  width: 100%;
-  margin-bottom: 24px;
-  position: relative;
-}
-
-.weekMark::before {
-  content: "";
-
-  position: absolute;
-
-  left: 50%;
-  top: -24px;
-
-  width: 1px;
-  height: 24px;
-
-  background: #bbb;
-}
-
-.weekMark span {
-  font-size: 11px;
-  color: #888;
-  letter-spacing: 0.08em;
-}
 
 .card {
 width: 520px;
