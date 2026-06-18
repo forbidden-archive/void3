@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
 
-type ViewMode = "timeline" | "gallery";
+type ViewMode = "timeline" | "archive" | "drawings" | "photos";
 type BlockType = "text" | "image" | "drawing";
 
 type Block = {
@@ -63,6 +63,32 @@ export default function Home() {
   const sortedEntries = useMemo(() => {
     return [...entries].sort((a, b) => a.date.localeCompare(b.date));
   }, [entries]);
+
+  const drawingItems = useMemo(() => {
+    return sortedEntries.flatMap((entry) =>
+      entry.blocks
+        .filter((block) => block.type === "drawing" && block.content)
+        .map((block) => ({
+          image: block.content,
+          entryId: entry.id,
+          title: entry.title,
+          date: entry.date
+        }))
+    );
+  }, [sortedEntries]);
+
+  const photoItems = useMemo(() => {
+    return sortedEntries.flatMap((entry) =>
+      entry.blocks
+        .filter((block) => block.type === "image" && block.content)
+        .map((block) => ({
+          image: block.content,
+          entryId: entry.id,
+          title: entry.title,
+          date: entry.date
+        }))
+    );
+  }, [sortedEntries]);
 
   const selected = sortedEntries.find((entry) => entry.id === selectedId);
 
@@ -361,11 +387,26 @@ export default function Home() {
             >
               timeline
             </button>
+
             <button
-              className={view === "gallery" ? "active" : ""}
-              onClick={() => setView("gallery")}
+              className={view === "archive" ? "active" : ""}
+              onClick={() => setView("archive")}
             >
-              gallery
+              archive
+            </button>
+
+            <button
+              className={view === "drawings" ? "active" : ""}
+              onClick={() => setView("drawings")}
+            >
+              drawings
+            </button>
+
+            <button
+              className={view === "photos" ? "active" : ""}
+              onClick={() => setView("photos")}
+            >
+              photos
             </button>
           </div>
         ) : (
@@ -424,7 +465,7 @@ export default function Home() {
         </>
       )}
 
-      {!selected && view === "gallery" && (
+      {!selected && view === "archive" && (
         <section className="gridGallery">
           {sortedEntries.map((entry) => (
             <article
@@ -449,6 +490,48 @@ export default function Home() {
         </section>
       )}
 
+      {!selected && view === "drawings" && (
+        <section className="gridGallery">
+          {drawingItems.map((item, index) => (
+            <article
+              key={`${item.entryId}-drawing-${index}`}
+              className="gridCard"
+              onClick={() => setSelectedId(item.entryId)}
+            >
+              <div className="gridImage">
+                <img src={item.image} alt="" />
+              </div>
+
+              <div className="gridMeta">
+                <p>{item.title}</p>
+                <span>{formatDate(item.date)}</span>
+              </div>
+            </article>
+          ))}
+        </section>
+      )}
+
+      {!selected && view === "photos" && (
+        <section className="gridGallery">
+          {photoItems.map((item, index) => (
+            <article
+              key={`${item.entryId}-photo-${index}`}
+              className="gridCard"
+              onClick={() => setSelectedId(item.entryId)}
+            >
+              <div className="gridImage">
+                <img src={item.image} alt="" />
+              </div>
+
+              <div className="gridMeta">
+                <p>{item.title}</p>
+                <span>{formatDate(item.date)}</span>
+              </div>
+            </article>
+          ))}
+        </section>
+      )}
+
       {selected && (
         <section className="detail">
           <div className="detailNav">
@@ -458,6 +541,7 @@ export default function Home() {
             >
               prev
             </button>
+
             <button
               disabled={!nextEntry}
               onClick={() => nextEntry && setSelectedId(nextEntry.id)}
