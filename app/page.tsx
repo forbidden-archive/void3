@@ -3,16 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
 
-type ViewMode =
-  | "timeline"
-  | "archive"
-  | "drawings"
-  | "photos";
-
-type BlockType =
-  | "text"
-  | "image"
-  | "drawing";
+type ViewMode = "timeline" | "archive" | "drawings" | "photos";
+type BlockType = "text" | "image" | "drawing";
 
 type Block = {
   id: string;
@@ -26,37 +18,27 @@ type Entry = {
   title: string;
   tag: string;
   thumbnail?: string;
-  thumbnailType: "photo" | "drawing";
+  thumbnailType?: "photo" | "drawing";
   blocks: Block[];
 };
 
 const getNowForInput = () => {
   const now = new Date();
   const offset = now.getTimezoneOffset();
-
-  const local = new Date(
-    now.getTime() - offset * 60 * 1000
-  );
-
-  return local
-    .toISOString()
-    .slice(0, 16);
+  const local = new Date(now.getTime() - offset * 60 * 1000);
+  return local.toISOString().slice(0, 16);
 };
 
 const formatDate = (value: string) => {
   if (!value) return "";
-
   return value.replace("T", " ");
 };
 
 export default function Home() {
-  const galleryRef =
-    useRef<HTMLElement>(null);
-
+  const galleryRef = useRef<HTMLElement>(null);
   const currentX = useRef(0);
   const targetX = useRef(0);
-  const rafRef =
-    useRef<number | null>(null);
+  const rafRef = useRef<number | null>(null);
 
   const dragRef = useRef({
     active: false,
@@ -65,131 +47,90 @@ export default function Home() {
     lastX: 0
   });
 
-  const [entries, setEntries] =
-    useState<Entry[]>([]);
+  const [entries, setEntries] = useState<Entry[]>([]);
+  const [selectedId, setSelectedId] = useState("");
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [view, setView] = useState<ViewMode>("timeline");
 
-  const [selectedId, setSelectedId] =
-    useState("");
-
-  const [editorOpen, setEditorOpen] =
-    useState(false);
-
-  const [view, setView] =
-    useState<ViewMode>("timeline");
-
-  const [form, setForm] =
-    useState<Entry>({
-      id: "",
-      date: "",
-      title: "",
-      tag: "",
-      thumbnail: "",
-      thumbnailType: "photo",
-      blocks: []
-    });
+  const [form, setForm] = useState<Entry>({
+    id: "",
+    date: "",
+    title: "",
+    tag: "",
+    thumbnail: "",
+    thumbnailType: "photo",
+    blocks: []
+  });
 
   const sortedEntries = useMemo(() => {
-    return [...entries].sort((a, b) =>
-      a.date.localeCompare(b.date)
-    );
+    return [...entries].sort((a, b) => a.date.localeCompare(b.date));
   }, [entries]);
 
   const drawingItems = useMemo(() => {
-    return sortedEntries.flatMap(
-      (entry) => {
-        const items = entry.blocks
-          .filter(
-            (block) =>
-              block.type ===
-                "drawing" &&
-              block.content
-          )
-          .map((block) => ({
-            image: block.content,
-            entryId: entry.id,
-            title: entry.title,
-            date: entry.date
-          }));
+    return sortedEntries.flatMap((entry) => {
+      const items = entry.blocks
+        .filter((block) => block.type === "drawing" && block.content)
+        .map((block) => ({
+          image: block.content,
+          entryId: entry.id,
+          title: entry.title,
+          date: entry.date
+        }));
 
-        if (
-          entry.thumbnail &&
-          entry.thumbnailType ===
-            "drawing"
-        ) {
-          items.unshift({
-            image: entry.thumbnail,
-            entryId: entry.id,
-            title: entry.title,
-            date: entry.date
-          });
-        }
-
-        return items;
+      if (
+        entry.thumbnail &&
+        (entry.thumbnailType ?? "photo") === "drawing"
+      ) {
+        items.unshift({
+          image: entry.thumbnail,
+          entryId: entry.id,
+          title: entry.title,
+          date: entry.date
+        });
       }
-    );
+
+      return items;
+    });
   }, [sortedEntries]);
 
   const photoItems = useMemo(() => {
-    return sortedEntries.flatMap(
-      (entry) => {
-        const items = entry.blocks
-          .filter(
-            (block) =>
-              block.type ===
-                "image" &&
-              block.content
-          )
-          .map((block) => ({
-            image: block.content,
-            entryId: entry.id,
-            title: entry.title,
-            date: entry.date
-          }));
+    return sortedEntries.flatMap((entry) => {
+      const items = entry.blocks
+        .filter((block) => block.type === "image" && block.content)
+        .map((block) => ({
+          image: block.content,
+          entryId: entry.id,
+          title: entry.title,
+          date: entry.date
+        }));
 
-        if (
-          entry.thumbnail &&
-          entry.thumbnailType ===
-            "photo"
-        ) {
-          items.unshift({
-            image: entry.thumbnail,
-            entryId: entry.id,
-            title: entry.title,
-            date: entry.date
-          });
-        }
-
-        return items;
+      if (
+        entry.thumbnail &&
+        (entry.thumbnailType ?? "photo") === "photo"
+      ) {
+        items.unshift({
+          image: entry.thumbnail,
+          entryId: entry.id,
+          title: entry.title,
+          date: entry.date
+        });
       }
-    );
+
+      return items;
+    });
   }, [sortedEntries]);
 
-  const selected =
-    sortedEntries.find(
-      (entry) =>
-        entry.id === selectedId
-    );
+  const selected = sortedEntries.find((entry) => entry.id === selectedId);
 
-  const selectedIndex =
-    sortedEntries.findIndex(
-      (entry) =>
-        entry.id === selectedId
-    );
+  const selectedIndex = sortedEntries.findIndex(
+    (entry) => entry.id === selectedId
+  );
 
-  const prevEntry =
-    selectedIndex > 0
-      ? sortedEntries[
-          selectedIndex - 1
-        ]
-      : null;
+  const prevEntry = selectedIndex > 0 ? sortedEntries[selectedIndex - 1] : null;
 
   const nextEntry =
-    selectedIndex >= 0 &&
-    selectedIndex <
-      sortedEntries.length - 1
-      ? sortedEntries[
-          selectedIndex + 1
-        ]
+    selectedIndex >= 0 && selectedIndex < sortedEntries.length - 1
+      ? sortedEntries[selectedIndex + 1]
       : null;
 
   useEffect(() => {
@@ -197,191 +138,166 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (
-      selectedId ||
-      view !== "timeline"
-    )
-      return;
+    if (selectedId || view !== "timeline") return;
 
     const animate = () => {
-      if (
-        window.innerWidth > 900
-      ) {
-        targetX.current =
-          window.scrollY;
+      if (window.innerWidth > 900) {
+        targetX.current = window.scrollY;
       }
 
-      currentX.current +=
-        (targetX.current -
-          currentX.current) *
-        0.08;
+      currentX.current += (targetX.current - currentX.current) * 0.08;
 
       if (galleryRef.current) {
-        galleryRef.current.style.transform =
-          `translateX(${-currentX.current}px)`;
+        galleryRef.current.style.transform = `translateX(${-currentX.current}px)`;
       }
 
-      rafRef.current =
-        requestAnimationFrame(
-          animate
-        );
+      rafRef.current = requestAnimationFrame(animate);
     };
 
-    rafRef.current =
-      requestAnimationFrame(
-        animate
-      );
+    rafRef.current = requestAnimationFrame(animate);
 
     return () => {
-      if (rafRef.current)
-        cancelAnimationFrame(
-          rafRef.current
-        );
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
   }, [selectedId, view]);
 
-  const loadEntries =
-    async () => {
-      const {
-        data,
-        error
-      } = await supabase
-        .from("entries")
-        .select("*")
-        .order("date", {
-          ascending: true
-        });
+  const getMaxScrollX = () => {
+    const cardWidth = window.innerWidth <= 900 ? 280 : 520;
+    const gap = window.innerWidth <= 900 ? 40 : 120;
+    const padding = window.innerWidth <= 900 ? 24 : 120;
 
-      if (error) {
-        alert(
-          "読み込みできませんでした"
-        );
+    const total =
+      sortedEntries.length * cardWidth +
+      Math.max(0, sortedEntries.length - 1) * gap +
+      padding * 2;
 
-        return;
-      }
+    return Math.max(0, total - window.innerWidth);
+  };
 
-      setEntries(
-        (data || []) as Entry[]
-      );
+  const onGalleryPointerDown = (event: React.PointerEvent<HTMLElement>) => {
+    if (view !== "timeline") return;
+
+    dragRef.current = {
+      active: true,
+      moved: false,
+      startX: event.clientX,
+      lastX: event.clientX
     };
+  };
 
-  const uploadImageToSupabase =
-    async (file: File) => {
-      const ext =
-        file.name
-          .split(".")
-          .pop();
+  const onGalleryPointerMove = (event: React.PointerEvent<HTMLElement>) => {
+    if (!dragRef.current.active || view !== "timeline") return;
 
-      const fileName = `${crypto.randomUUID()}.${ext}`;
+    const dx = event.clientX - dragRef.current.lastX;
+    const totalDx = event.clientX - dragRef.current.startX;
 
-      const filePath = `images/${fileName}`;
+    if (Math.abs(totalDx) > 8) {
+      dragRef.current.moved = true;
+    }
 
-      const { error } =
-        await supabase.storage
-          .from(
-            "archive-images"
-          )
-          .upload(
-            filePath,
-            file
-          );
+    dragRef.current.lastX = event.clientX;
 
-      if (error) {
-        alert(
-          "画像アップロードに失敗しました"
-        );
+    const sensitivity = window.innerWidth <= 900 ? 3.8 : 1;
 
-        return "";
-      }
+    targetX.current = Math.min(
+      getMaxScrollX(),
+      Math.max(0, targetX.current - dx * sensitivity)
+    );
+  };
 
-      const { data } =
-        supabase.storage
-          .from(
-            "archive-images"
-          )
-          .getPublicUrl(
-            filePath
-          );
+  const onGalleryPointerUp = () => {
+    dragRef.current.active = false;
 
-      return data.publicUrl;
-    };
+    setTimeout(() => {
+      dragRef.current.moved = false;
+    }, 120);
+  };
 
-  const uploadThumbnail =
-    async (
-      file?: File
-    ) => {
-      if (!file) return;
+  const loadEntries = async () => {
+    const { data, error } = await supabase
+      .from("entries")
+      .select("*")
+      .order("date", { ascending: true });
 
-      const imageUrl =
-        await uploadImageToSupabase(
-          file
-        );
+    if (error) {
+      console.error(error);
+      alert("読み込みできませんでした");
+      return;
+    }
 
-      if (!imageUrl) return;
+    setEntries((data || []) as Entry[]);
+  };
 
-      setForm((prev) => ({
-        ...prev,
-        thumbnail: imageUrl
-      }));
-    };
+  const uploadImageToSupabase = async (file: File) => {
+    const ext = file.name.split(".").pop();
+    const fileName = `${crypto.randomUUID()}.${ext}`;
+    const filePath = `images/${fileName}`;
 
-  const uploadBlockImage =
-    async (
-      file: File,
-      blockId: string
-    ) => {
-      const imageUrl =
-        await uploadImageToSupabase(
-          file
-        );
+    const { error } = await supabase.storage
+      .from("archive-images")
+      .upload(filePath, file, {
+        cacheControl: "3600",
+        upsert: false
+      });
 
-      if (!imageUrl) return;
+    if (error) {
+      console.error(error);
+      alert("画像アップロードに失敗しました");
+      return "";
+    }
 
-      setForm((prev) => ({
-        ...prev,
-        blocks:
-          prev.blocks.map(
-            (block) =>
-              block.id ===
-              blockId
-                ? {
-                    ...block,
-                    content:
-                      imageUrl
-                  }
-                : block
-          )
-      }));
-    };  const saveEntryToSupabase =
-    async (entry: Entry) => {
-      const { error } =
-        await supabase
-          .from("entries")
-          .upsert({
-            id: entry.id,
-            date: entry.date,
-            title: entry.title,
-            tag: entry.tag,
-            thumbnail:
-              entry.thumbnail,
-            thumbnailType:
-              entry.thumbnailType,
-            blocks: entry.blocks
-          });
+    const { data } = supabase.storage
+      .from("archive-images")
+      .getPublicUrl(filePath);
 
-      if (error) {
-        alert(
-          "保存できませんでした"
-        );
-        return;
-      }
+    return data.publicUrl;
+  };
 
-      await loadEntries();
-    };
+  const uploadThumbnail = async (file?: File) => {
+    if (!file) return;
 
-  const addBlock = (
-    type: BlockType
-  ) => {
+    const imageUrl = await uploadImageToSupabase(file);
+    if (!imageUrl) return;
+
+    setForm((prev) => ({
+      ...prev,
+      thumbnail: imageUrl
+    }));
+  };
+
+  const uploadBlockImage = async (file: File, blockId: string) => {
+    const imageUrl = await uploadImageToSupabase(file);
+    if (!imageUrl) return;
+
+    setForm((prev) => ({
+      ...prev,
+      blocks: prev.blocks.map((block) =>
+        block.id === blockId ? { ...block, content: imageUrl } : block
+      )
+    }));
+  };
+
+  const saveEntryToSupabase = async (entry: Entry) => {
+    const { error } = await supabase.from("entries").upsert({
+      id: entry.id,
+      date: entry.date,
+      title: entry.title,
+      tag: entry.tag,
+      thumbnail: entry.thumbnail,
+      thumbnailType: entry.thumbnailType ?? "photo",
+      blocks: entry.blocks
+    });
+
+    if (error) {
+      console.error(error);
+      alert("保存できませんでした");
+      return;
+    }
+
+    await loadEntries();
+  };
+
+  const addBlock = (type: BlockType) => {
     setForm((prev) => ({
       ...prev,
       blocks: [
@@ -395,279 +311,442 @@ export default function Home() {
     }));
   };
 
-  const saveEntry =
-    async () => {
-      if (
-        !form.title.trim()
+  const updateBlockText = (blockId: string, content: string) => {
+    setForm((prev) => ({
+      ...prev,
+      blocks: prev.blocks.map((block) =>
+        block.id === blockId ? { ...block, content } : block
       )
-        return;
+    }));
+  };
 
-      const id =
-        form.id ||
-        crypto.randomUUID();
+  const removeBlock = (blockId: string) => {
+    setForm((prev) => ({
+      ...prev,
+      blocks: prev.blocks.filter((block) => block.id !== blockId)
+    }));
+  };
 
-      const entry: Entry = {
-        ...form,
-        id,
-        date:
-          form.date ||
-          getNowForInput()
+  const moveBlock = (blockId: string, direction: "up" | "down") => {
+    setForm((prev) => {
+      const blocks = [...prev.blocks];
+      const index = blocks.findIndex((block) => block.id === blockId);
+      if (index === -1) return prev;
+
+      const targetIndex = direction === "up" ? index - 1 : index + 1;
+      if (targetIndex < 0 || targetIndex >= blocks.length) return prev;
+
+      const current = blocks[index];
+      blocks[index] = blocks[targetIndex];
+      blocks[targetIndex] = current;
+
+      return {
+        ...prev,
+        blocks
       };
+    });
+  };
 
-      await saveEntryToSupabase(
-        entry
-      );
+  const saveEntry = async () => {
+    if (!form.title.trim()) return;
 
-      setSelectedId(id);
-      setEditorOpen(false);
+    const id = form.id || crypto.randomUUID();
+
+    const entry: Entry = {
+      ...form,
+      id,
+      date: form.date || getNowForInput(),
+      thumbnailType: form.thumbnailType ?? "photo"
     };
 
-  const createNew =
-    () => {
-      setForm({
-        id: "",
-        date:
-          getNowForInput(),
-        title: "",
-        tag: "",
-        thumbnail: "",
-        thumbnailType:
-          "photo",
-        blocks: []
-      });
+    await saveEntryToSupabase(entry);
 
-      setEditorOpen(true);
-    };
+    setSelectedId(id);
+    setEditorOpen(false);
+  };
+
+  const deleteEntry = async () => {
+    if (!selected) return;
+
+    const { error } = await supabase
+      .from("entries")
+      .delete()
+      .eq("id", selected.id);
+
+    if (error) {
+      console.error(error);
+      alert("削除できませんでした");
+      return;
+    }
+
+    await loadEntries();
+    setSelectedId("");
+    setEditorOpen(false);
+  };
+
+  const createNew = () => {
+    setForm({
+      id: "",
+      date: getNowForInput(),
+      title: "",
+      tag: "",
+      thumbnail: "",
+      thumbnailType: "photo",
+      blocks: []
+    });
+
+    setEditorOpen(true);
+  };
+
+  const editCurrent = () => {
+    if (!selected) return;
+
+    setForm({
+      ...selected,
+      thumbnailType: selected.thumbnailType ?? "photo",
+      blocks: [...selected.blocks]
+    });
+
+    setEditorOpen(true);
+  };
 
   return (
-    <main
-      className={
-        selected
-          ? "page detailMode"
-          : "page"
-      }
-    >
+    <main className={selected ? "page detailMode" : "page"}>
       <header className="top">
         {!selected ? (
           <div className="viewSwitch">
             <button
-              onClick={() =>
-                setView(
-                  "timeline"
-                )
-              }
+              className={view === "timeline" ? "active" : ""}
+              onClick={() => setView("timeline")}
             >
               timeline
             </button>
 
             <button
-              onClick={() =>
-                setView(
-                  "archive"
-                )
-              }
+              className={view === "archive" ? "active" : ""}
+              onClick={() => setView("archive")}
             >
               archive
             </button>
 
             <button
-              onClick={() =>
-                setView(
-                  "drawings"
-                )
-              }
+              className={view === "drawings" ? "active" : ""}
+              onClick={() => setView("drawings")}
             >
               drawings
             </button>
 
             <button
-              onClick={() =>
-                setView(
-                  "photos"
-                )
-              }
+              className={view === "photos" ? "active" : ""}
+              onClick={() => setView("photos")}
             >
               photos
             </button>
           </div>
         ) : (
-          <button
-            onClick={() =>
-              setSelectedId(
-                ""
-              )
-            }
-          >
+          <button className="backTop" onClick={() => setSelectedId("")}>
             back
           </button>
         )}
 
-        <div className="logo">
-          void
-        </div>
+        <div className="logo">void</div>
 
-        <button
-          onClick={
-            createNew
-          }
-        >
-          add
-        </button>
+        {selected ? (
+          <button onClick={editCurrent}>edit</button>
+        ) : (
+          <button onClick={createNew}>add</button>
+        )}
       </header>
 
-      {view ===
-        "drawings" &&
-        !selected && (
-          <section className="gridGallery">
-            {drawingItems.map(
-              (
-                item,
-                index
-              ) => (
-                <article
-                  key={
-                    index
+      {!selected && view === "timeline" && (
+        <>
+          <section
+            className="gallery"
+            ref={galleryRef}
+            onPointerDown={onGalleryPointerDown}
+            onPointerMove={onGalleryPointerMove}
+            onPointerUp={onGalleryPointerUp}
+            onPointerCancel={onGalleryPointerUp}
+            onPointerLeave={onGalleryPointerUp}
+          >
+            {sortedEntries.map((entry) => (
+              <article
+                key={entry.id}
+                className="timelineItem"
+                onClick={() => {
+                  if (!dragRef.current.moved) {
+                    setSelectedId(entry.id);
                   }
-                  className="gridCard"
-                  onClick={() =>
-                    setSelectedId(
-                      item.entryId
-                    )
-                  }
-                >
-                  <div className="gridImage">
-                    <img
-                      src={
-                        item.image
-                      }
-                      alt=""
-                    />
-                  </div>
-                </article>
-              )
-            )}
+                }}
+              >
+                <div className="card">
+                  {entry.thumbnail ? (
+                    <img src={entry.thumbnail} alt="" />
+                  ) : (
+                    <div className="placeholder" />
+                  )}
+                </div>
+              </article>
+            ))}
           </section>
-        )}
 
-      {view ===
-        "photos" &&
-        !selected && (
-          <section className="gridGallery">
-            {photoItems.map(
-              (
-                item,
-                index
-              ) => (
-                <article
-                  key={
-                    index
-                  }
-                  className="gridCard"
-                  onClick={() =>
-                    setSelectedId(
-                      item.entryId
-                    )
-                  }
-                >
-                  <div className="gridImage">
-                    <img
-                      src={
-                        item.image
-                      }
-                      alt=""
-                    />
-                  </div>
-                </article>
-              )
+          <div
+            className="scrollSpace"
+            style={{
+              height: `${Math.max(sortedEntries.length * 900, 2200)}px`
+            }}
+          />
+        </>
+      )}
+
+      {!selected && view === "archive" && (
+        <section className="gridGallery">
+          {sortedEntries.map((entry) => (
+            <article
+              key={entry.id}
+              className="gridCard"
+              onClick={() => setSelectedId(entry.id)}
+            >
+              <div className="gridImage">
+                {entry.thumbnail ? (
+                  <img src={entry.thumbnail} alt="" />
+                ) : (
+                  <div className="placeholder" />
+                )}
+              </div>
+
+              <div className="gridMeta">
+                <p>{entry.title}</p>
+                <span>{formatDate(entry.date)}</span>
+              </div>
+            </article>
+          ))}
+        </section>
+      )}
+
+      {!selected && view === "drawings" && (
+        <section className="gridGallery">
+          {drawingItems.map((item, index) => (
+            <article
+              key={`${item.entryId}-drawing-${index}`}
+              className="gridCard"
+              onClick={() => setSelectedId(item.entryId)}
+            >
+              <div className="gridImage">
+                <img src={item.image} alt="" />
+              </div>
+
+              <div className="gridMeta">
+                <p>{item.title}</p>
+                <span>{formatDate(item.date)}</span>
+              </div>
+            </article>
+          ))}
+        </section>
+      )}
+
+      {!selected && view === "photos" && (
+        <section className="gridGallery">
+          {photoItems.map((item, index) => (
+            <article
+              key={`${item.entryId}-photo-${index}`}
+              className="gridCard"
+              onClick={() => setSelectedId(item.entryId)}
+            >
+              <div className="gridImage">
+                <img src={item.image} alt="" />
+              </div>
+
+              <div className="gridMeta">
+                <p>{item.title}</p>
+                <span>{formatDate(item.date)}</span>
+              </div>
+            </article>
+          ))}
+        </section>
+      )}
+
+      {selected && (
+        <section className="detail">
+          <div className="detailNav">
+            <button
+              disabled={!prevEntry}
+              onClick={() => prevEntry && setSelectedId(prevEntry.id)}
+            >
+              prev
+            </button>
+
+            <button
+              disabled={!nextEntry}
+              onClick={() => nextEntry && setSelectedId(nextEntry.id)}
+            >
+              next
+            </button>
+          </div>
+
+          <div className="detailHero">
+            {selected.thumbnail ? (
+              <img src={selected.thumbnail} alt="" />
+            ) : (
+              <div className="placeholder" />
             )}
-          </section>
-        )}
+          </div>
+
+          <div className="detailMeta">
+            <p className="date">{formatDate(selected.date)}</p>
+            <h1>{selected.title}</h1>
+            <p className="tag">#{selected.tag}</p>
+          </div>
+
+          {selected.blocks.map((block) => {
+            if (block.type === "text") {
+              return (
+                <p key={block.id} className="bodyText">
+                  {block.content}
+                </p>
+              );
+            }
+
+            return (
+              <img
+                key={block.id}
+                src={block.content}
+                alt=""
+                className={
+                  block.type === "drawing"
+                    ? "contentImage drawingImage"
+                    : "contentImage"
+                }
+              />
+            );
+          })}
+        </section>
+      )}
 
       {editorOpen && (
         <section className="editor">
+          <button onClick={() => setEditorOpen(false)}>close</button>
+
+          <input
+            type="datetime-local"
+            value={form.date}
+            onChange={(event) =>
+              setForm({
+                ...form,
+                date: event.target.value
+              })
+            }
+          />
+
+          <input
+            placeholder="title"
+            value={form.title}
+            onChange={(event) =>
+              setForm({
+                ...form,
+                title: event.target.value
+              })
+            }
+          />
+
+          <input
+            placeholder="tag"
+            value={form.tag}
+            onChange={(event) =>
+              setForm({
+                ...form,
+                tag: event.target.value
+              })
+            }
+          />
+
           <label>
             thumbnail
-
             <input
               type="file"
               accept="image/*"
-              onChange={(
-                e
-              ) =>
-                uploadThumbnail(
-                  e.target
-                    .files?.[0]
-                )
-              }
+              onChange={(event) => uploadThumbnail(event.target.files?.[0])}
             />
           </label>
 
           <select
-            value={
-              form.thumbnailType
-            }
-            onChange={(
-              e
-            ) =>
+            value={form.thumbnailType ?? "photo"}
+            onChange={(event) =>
               setForm({
                 ...form,
-                thumbnailType:
-                  e.target
-                    .value as
-                    | "photo"
-                    | "drawing"
+                thumbnailType: event.target.value as "photo" | "drawing"
               })
             }
           >
-            <option value="photo">
-              photo
-            </option>
-
-            <option value="drawing">
-              drawing
-            </option>
+            <option value="photo">photo</option>
+            <option value="drawing">drawing</option>
           </select>
 
+          {form.thumbnail && (
+            <img className="editorPreview" src={form.thumbnail} alt="" />
+          )}
+
           <div className="blockButtons">
-            <button
-              onClick={() =>
-                addBlock(
-                  "text"
-                )
-              }
-            >
-              + text
-            </button>
-
-            <button
-              onClick={() =>
-                addBlock(
-                  "image"
-                )
-              }
-            >
-              + image
-            </button>
-
-            <button
-              onClick={() =>
-                addBlock(
-                  "drawing"
-                )
-              }
-            >
-              + drawing
-            </button>
+            <button onClick={() => addBlock("text")}>+ text</button>
+            <button onClick={() => addBlock("image")}>+ image</button>
+            <button onClick={() => addBlock("drawing")}>+ drawing</button>
           </div>
 
-          <button
-            className="save"
-            onClick={
-              saveEntry
-            }
-          >
+          {form.blocks.map((block, index) => (
+            <div className="editorBlock" key={block.id}>
+              <div className="blockHeader">
+                <span>
+                  {index + 1}. {block.type}
+                </span>
+
+                <div>
+                  <button onClick={() => moveBlock(block.id, "up")}>↑</button>
+                  <button onClick={() => moveBlock(block.id, "down")}>↓</button>
+                </div>
+              </div>
+
+              {block.type === "text" ? (
+                <textarea
+                  value={block.content}
+                  onChange={(event) =>
+                    updateBlockText(block.id, event.target.value)
+                  }
+                />
+              ) : (
+                <>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(event) =>
+                      event.target.files?.[0] &&
+                      uploadBlockImage(event.target.files[0], block.id)
+                    }
+                  />
+
+                  {block.content && (
+                    <img className="editorPreview" src={block.content} alt="" />
+                  )}
+                </>
+              )}
+
+              <button
+                className="removeBlock"
+                onClick={() => removeBlock(block.id)}
+              >
+                remove
+              </button>
+            </div>
+          ))}
+
+          <button className="save" onClick={saveEntry}>
             save
           </button>
+
+          {selected && (
+            <button className="delete" onClick={deleteEntry}>
+              delete
+            </button>
+          )}
         </section>
       )}
     </main>
