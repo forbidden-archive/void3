@@ -60,6 +60,22 @@ img {
 .logo,
 .viewSwitch {
   pointer-events: auto;
+
+  justify-self: start;
+
+  color: #666;
+
+  font-size: 15px;
+
+  background: none;
+
+  border: none;
+
+  transition: opacity .2s;
+}
+
+.viewSwitch:hover {
+  opacity: .5;
 }
 
 .top button:last-child {
@@ -72,19 +88,10 @@ img {
   font-family: serif;
 }
 
-.viewSwitch {
-  display: flex;
-  gap: 18px;
-  justify-self: start;
-}
-
-.viewSwitch button {
-  color: #999;
-}
-
-.viewSwitch button.active {
-  color: #111;
-  text-decoration: underline;
+@media (max-width:900px) {
+  .viewSwitch {
+    font-size: 14px;
+  }
 }
 
 .gallery {
