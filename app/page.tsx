@@ -405,7 +405,12 @@ export default function Home() {
     setSelectedId("");
     setEditorOpen(false);
   };
+const views: ViewMode[] = ["timeline", "archive", "drawings", "photos"];
 
+const cycleView = () => {
+  const index = views.indexOf(view);
+  setView(views[(index + 1) % views.length]);
+};
   const createNew = () => {
     setForm({
       id: "",
@@ -441,35 +446,9 @@ export default function Home() {
     <main className={selected ? "page detailMode" : "page"}>
       <header className="top">
         {!selected ? (
-          <div className="viewSwitch">
-            <button
-              className={view === "timeline" ? "active" : ""}
-              onClick={() => setView("timeline")}
-            >
-              timeline
-            </button>
-
-            <button
-              className={view === "archive" ? "active" : ""}
-              onClick={() => setView("archive")}
-            >
-              archive
-            </button>
-
-            <button
-              className={view === "drawings" ? "active" : ""}
-              onClick={() => setView("drawings")}
-            >
-              drawings
-            </button>
-
-            <button
-              className={view === "photos" ? "active" : ""}
-              onClick={() => setView("photos")}
-            >
-              photos
-            </button>
-          </div>
+         <button className="viewSwitch" onClick={cycleView}>
+  index : {view}
+</button>
         ) : (
           <button className="backTop" onClick={() => setSelectedId("")}>
             back
