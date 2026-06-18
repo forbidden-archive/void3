@@ -3,8 +3,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
 
-type ViewMode = "timeline" | "archive" | "drawings" | "photos";
-type BlockType = "text" | "image" | "drawing";
+type ViewMode =
+  | "timeline"
+  | "archive"
+  | "drawings"
+  | "photos";
+
+type BlockType =
+  | "text"
+  | "image"
+  | "drawing";
 
 type Block = {
   id: string;
@@ -18,26 +26,37 @@ type Entry = {
   title: string;
   tag: string;
   thumbnail?: string;
+  thumbnailType: "photo" | "drawing";
   blocks: Block[];
 };
 
 const getNowForInput = () => {
   const now = new Date();
   const offset = now.getTimezoneOffset();
-  const local = new Date(now.getTime() - offset * 60 * 1000);
-  return local.toISOString().slice(0, 16);
+
+  const local = new Date(
+    now.getTime() - offset * 60 * 1000
+  );
+
+  return local
+    .toISOString()
+    .slice(0, 16);
 };
 
 const formatDate = (value: string) => {
   if (!value) return "";
+
   return value.replace("T", " ");
 };
 
 export default function Home() {
-  const galleryRef = useRef<HTMLElement>(null);
+  const galleryRef =
+    useRef<HTMLElement>(null);
+
   const currentX = useRef(0);
   const targetX = useRef(0);
-  const rafRef = useRef<number | null>(null);
+  const rafRef =
+    useRef<number | null>(null);
 
   const dragRef = useRef({
     active: false,
@@ -46,61 +65,131 @@ export default function Home() {
     lastX: 0
   });
 
-  const [entries, setEntries] = useState<Entry[]>([]);
-  const [selectedId, setSelectedId] = useState("");
-  const [editorOpen, setEditorOpen] = useState(false);
-  const [view, setView] = useState<ViewMode>("timeline");
+  const [entries, setEntries] =
+    useState<Entry[]>([]);
 
-  const [form, setForm] = useState<Entry>({
-    id: "",
-    date: "",
-    title: "",
-    tag: "",
-    thumbnail: "",
-    blocks: []
-  });
+  const [selectedId, setSelectedId] =
+    useState("");
+
+  const [editorOpen, setEditorOpen] =
+    useState(false);
+
+  const [view, setView] =
+    useState<ViewMode>("timeline");
+
+  const [form, setForm] =
+    useState<Entry>({
+      id: "",
+      date: "",
+      title: "",
+      tag: "",
+      thumbnail: "",
+      thumbnailType: "photo",
+      blocks: []
+    });
 
   const sortedEntries = useMemo(() => {
-    return [...entries].sort((a, b) => a.date.localeCompare(b.date));
+    return [...entries].sort((a, b) =>
+      a.date.localeCompare(b.date)
+    );
   }, [entries]);
 
   const drawingItems = useMemo(() => {
-    return sortedEntries.flatMap((entry) =>
-      entry.blocks
-        .filter((block) => block.type === "drawing" && block.content)
-        .map((block) => ({
-          image: block.content,
-          entryId: entry.id,
-          title: entry.title,
-          date: entry.date
-        }))
+    return sortedEntries.flatMap(
+      (entry) => {
+        const items = entry.blocks
+          .filter(
+            (block) =>
+              block.type ===
+                "drawing" &&
+              block.content
+          )
+          .map((block) => ({
+            image: block.content,
+            entryId: entry.id,
+            title: entry.title,
+            date: entry.date
+          }));
+
+        if (
+          entry.thumbnail &&
+          entry.thumbnailType ===
+            "drawing"
+        ) {
+          items.unshift({
+            image: entry.thumbnail,
+            entryId: entry.id,
+            title: entry.title,
+            date: entry.date
+          });
+        }
+
+        return items;
+      }
     );
   }, [sortedEntries]);
 
   const photoItems = useMemo(() => {
-    return sortedEntries.flatMap((entry) =>
-      entry.blocks
-        .filter((block) => block.type === "image" && block.content)
-        .map((block) => ({
-          image: block.content,
-          entryId: entry.id,
-          title: entry.title,
-          date: entry.date
-        }))
+    return sortedEntries.flatMap(
+      (entry) => {
+        const items = entry.blocks
+          .filter(
+            (block) =>
+              block.type ===
+                "image" &&
+              block.content
+          )
+          .map((block) => ({
+            image: block.content,
+            entryId: entry.id,
+            title: entry.title,
+            date: entry.date
+          }));
+
+        if (
+          entry.thumbnail &&
+          entry.thumbnailType ===
+            "photo"
+        ) {
+          items.unshift({
+            image: entry.thumbnail,
+            entryId: entry.id,
+            title: entry.title,
+            date: entry.date
+          });
+        }
+
+        return items;
+      }
     );
   }, [sortedEntries]);
 
-  const selected = sortedEntries.find((entry) => entry.id === selectedId);
+  const selected =
+    sortedEntries.find(
+      (entry) =>
+        entry.id === selectedId
+    );
 
-  const selectedIndex = sortedEntries.findIndex(
-    (entry) => entry.id === selectedId
-  );
+  const selectedIndex =
+    sortedEntries.findIndex(
+      (entry) =>
+        entry.id === selectedId
+    );
 
-  const prevEntry = selectedIndex > 0 ? sortedEntries[selectedIndex - 1] : null;
+  const prevEntry =
+    selectedIndex > 0
+      ? sortedEntries[
+          selectedIndex - 1
+        ]
+      : null;
 
   const nextEntry =
-    selectedIndex >= 0 && selectedIndex < sortedEntries.length - 1
-      ? sortedEntries[selectedIndex + 1]
+    selectedIndex >= 0 &&
+    selectedIndex <
+      sortedEntries.length - 1
+      ? sortedEntries[
+          selectedIndex + 1
+        ]
       : null;
 
   useEffect(() => {
@@ -108,165 +197,191 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (selectedId || view !== "timeline") return;
+    if (
+      selectedId ||
+      view !== "timeline"
+    )
+      return;
 
     const animate = () => {
-      if (window.innerWidth > 900) {
-        targetX.current = window.scrollY;
+      if (
+        window.innerWidth > 900
+      ) {
+        targetX.current =
+          window.scrollY;
       }
 
-      currentX.current += (targetX.current - currentX.current) * 0.08;
+      currentX.current +=
+        (targetX.current -
+          currentX.current) *
+        0.08;
 
       if (galleryRef.current) {
-        galleryRef.current.style.transform = `translateX(${-currentX.current}px)`;
+        galleryRef.current.style.transform =
+          `translateX(${-currentX.current}px)`;
       }
 
-      rafRef.current = requestAnimationFrame(animate);
+      rafRef.current =
+        requestAnimationFrame(
+          animate
+        );
     };
 
-    rafRef.current = requestAnimationFrame(animate);
+    rafRef.current =
+      requestAnimationFrame(
+        animate
+      );
 
     return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      if (rafRef.current)
+        cancelAnimationFrame(
+          rafRef.current
+        );
     };
   }, [selectedId, view]);
 
-  const getMaxScrollX = () => {
-    const cardWidth = window.innerWidth <= 900 ? 280 : 520;
-    const gap = window.innerWidth <= 900 ? 40 : 120;
-    const padding = window.innerWidth <= 900 ? 24 : 120;
+  const loadEntries =
+    async () => {
+      const {
+        data,
+        error
+      } = await supabase
+        .from("entries")
+        .select("*")
+        .order("date", {
+          ascending: true
+        });
 
-    const total =
-      sortedEntries.length * cardWidth +
-      Math.max(0, sortedEntries.length - 1) * gap +
-      padding * 2;
+      if (error) {
+        alert(
+          "読み込みできませんでした"
+        );
 
-    return Math.max(0, total - window.innerWidth);
-  };
+        return;
+      }
 
-  const onGalleryPointerDown = (event: React.PointerEvent<HTMLElement>) => {
-    if (view !== "timeline") return;
-
-    dragRef.current = {
-      active: true,
-      moved: false,
-      startX: event.clientX,
-      lastX: event.clientX
+      setEntries(
+        (data || []) as Entry[]
+      );
     };
-  };
 
-  const onGalleryPointerMove = (event: React.PointerEvent<HTMLElement>) => {
-    if (!dragRef.current.active || view !== "timeline") return;
+  const uploadImageToSupabase =
+    async (file: File) => {
+      const ext =
+        file.name
+          .split(".")
+          .pop();
 
-    const dx = event.clientX - dragRef.current.lastX;
-    const totalDx = event.clientX - dragRef.current.startX;
+      const fileName = `${crypto.randomUUID()}.${ext}`;
 
-    if (Math.abs(totalDx) > 8) {
-      dragRef.current.moved = true;
-    }
+      const filePath = `images/${fileName}`;
 
-    dragRef.current.lastX = event.clientX;
+      const { error } =
+        await supabase.storage
+          .from(
+            "archive-images"
+          )
+          .upload(
+            filePath,
+            file
+          );
 
-    const sensitivity = window.innerWidth <= 900 ? 3.8 : 1;
+      if (error) {
+        alert(
+          "画像アップロードに失敗しました"
+        );
 
-    targetX.current = Math.min(
-      getMaxScrollX(),
-      Math.max(0, targetX.current - dx * sensitivity)
-    );
-  };
+        return "";
+      }
 
-  const onGalleryPointerUp = () => {
-    dragRef.current.active = false;
+      const { data } =
+        supabase.storage
+          .from(
+            "archive-images"
+          )
+          .getPublicUrl(
+            filePath
+          );
 
-    setTimeout(() => {
-      dragRef.current.moved = false;
-    }, 120);
-  };
+      return data.publicUrl;
+    };
 
-  const loadEntries = async () => {
-    const { data, error } = await supabase
-      .from("entries")
-      .select("*")
-      .order("date", { ascending: true });
+  const uploadThumbnail =
+    async (
+      file?: File
+    ) => {
+      if (!file) return;
 
-    if (error) {
-      console.error(error);
-      alert("読み込みできませんでした");
-      return;
-    }
+      const imageUrl =
+        await uploadImageToSupabase(
+          file
+        );
 
-    setEntries((data || []) as Entry[]);
-  };
+      if (!imageUrl) return;
 
-  const uploadImageToSupabase = async (file: File) => {
-    const ext = file.name.split(".").pop();
-    const fileName = `${crypto.randomUUID()}.${ext}`;
-    const filePath = `images/${fileName}`;
+      setForm((prev) => ({
+        ...prev,
+        thumbnail: imageUrl
+      }));
+    };
 
-    const { error } = await supabase.storage
-      .from("archive-images")
-      .upload(filePath, file, {
-        cacheControl: "3600",
-        upsert: false
-      });
+  const uploadBlockImage =
+    async (
+      file: File,
+      blockId: string
+    ) => {
+      const imageUrl =
+        await uploadImageToSupabase(
+          file
+        );
 
-    if (error) {
-      console.error(error);
-      alert("画像アップロードに失敗しました");
-      return "";
-    }
+      if (!imageUrl) return;
 
-    const { data } = supabase.storage
-      .from("archive-images")
-      .getPublicUrl(filePath);
+      setForm((prev) => ({
+        ...prev,
+        blocks:
+          prev.blocks.map(
+            (block) =>
+              block.id ===
+              blockId
+                ? {
+                    ...block,
+                    content:
+                      imageUrl
+                  }
+                : block
+          )
+      }));
+    };  const saveEntryToSupabase =
+    async (entry: Entry) => {
+      const { error } =
+        await supabase
+          .from("entries")
+          .upsert({
+            id: entry.id,
+            date: entry.date,
+            title: entry.title,
+            tag: entry.tag,
+            thumbnail:
+              entry.thumbnail,
+            thumbnailType:
+              entry.thumbnailType,
+            blocks: entry.blocks
+          });
 
-    return data.publicUrl;
-  };
+      if (error) {
+        alert(
+          "保存できませんでした"
+        );
+        return;
+      }
 
-  const uploadThumbnail = async (file?: File) => {
-    if (!file) return;
+      await loadEntries();
+    };
 
-    const imageUrl = await uploadImageToSupabase(file);
-    if (!imageUrl) return;
-
-    setForm((prev) => ({
-      ...prev,
-      thumbnail: imageUrl
-    }));
-  };
-
-  const uploadBlockImage = async (file: File, blockId: string) => {
-    const imageUrl = await uploadImageToSupabase(file);
-    if (!imageUrl) return;
-
-    setForm((prev) => ({
-      ...prev,
-      blocks: prev.blocks.map((block) =>
-        block.id === blockId ? { ...block, content: imageUrl } : block
-      )
-    }));
-  };
-
-  const saveEntryToSupabase = async (entry: Entry) => {
-    const { error } = await supabase.from("entries").upsert({
-      id: entry.id,
-      date: entry.date,
-      title: entry.title,
-      tag: entry.tag,
-      thumbnail: entry.thumbnail,
-      blocks: entry.blocks
-    });
-
-    if (error) {
-      console.error(error);
-      alert("保存できませんでした");
-      return;
-    }
-
-    await loadEntries();
-  };
-
-  const addBlock = (type: BlockType) => {
+  const addBlock = (
+    type: BlockType
+  ) => {
     setForm((prev) => ({
       ...prev,
       blocks: [
@@ -280,426 +395,279 @@ export default function Home() {
     }));
   };
 
-  const updateBlockText = (blockId: string, content: string) => {
-    setForm((prev) => ({
-      ...prev,
-      blocks: prev.blocks.map((block) =>
-        block.id === blockId ? { ...block, content } : block
+  const saveEntry =
+    async () => {
+      if (
+        !form.title.trim()
       )
-    }));
-  };
+        return;
 
-  const removeBlock = (blockId: string) => {
-    setForm((prev) => ({
-      ...prev,
-      blocks: prev.blocks.filter((block) => block.id !== blockId)
-    }));
-  };
+      const id =
+        form.id ||
+        crypto.randomUUID();
 
-  const moveBlock = (blockId: string, direction: "up" | "down") => {
-    setForm((prev) => {
-      const blocks = [...prev.blocks];
-      const index = blocks.findIndex((block) => block.id === blockId);
-      if (index === -1) return prev;
-
-      const targetIndex = direction === "up" ? index - 1 : index + 1;
-      if (targetIndex < 0 || targetIndex >= blocks.length) return prev;
-
-      const current = blocks[index];
-      blocks[index] = blocks[targetIndex];
-      blocks[targetIndex] = current;
-
-      return {
-        ...prev,
-        blocks
+      const entry: Entry = {
+        ...form,
+        id,
+        date:
+          form.date ||
+          getNowForInput()
       };
-    });
-  };
 
-  const saveEntry = async () => {
-    if (!form.title.trim()) return;
+      await saveEntryToSupabase(
+        entry
+      );
 
-    const id = form.id || crypto.randomUUID();
-
-    const entry: Entry = {
-      ...form,
-      id,
-      date: form.date || getNowForInput()
+      setSelectedId(id);
+      setEditorOpen(false);
     };
 
-    await saveEntryToSupabase(entry);
+  const createNew =
+    () => {
+      setForm({
+        id: "",
+        date:
+          getNowForInput(),
+        title: "",
+        tag: "",
+        thumbnail: "",
+        thumbnailType:
+          "photo",
+        blocks: []
+      });
 
-    setSelectedId(id);
-    setEditorOpen(false);
-  };
-
-  const deleteEntry = async () => {
-    if (!selected) return;
-
-    const { error } = await supabase
-      .from("entries")
-      .delete()
-      .eq("id", selected.id);
-
-    if (error) {
-      console.error(error);
-      alert("削除できませんでした");
-      return;
-    }
-
-    await loadEntries();
-    setSelectedId("");
-    setEditorOpen(false);
-  };
-
-  const createNew = () => {
-    setForm({
-      id: "",
-      date: getNowForInput(),
-      title: "",
-      tag: "",
-      thumbnail: "",
-      blocks: []
-    });
-
-    setEditorOpen(true);
-  };
-
-  const editCurrent = () => {
-    if (!selected) return;
-
-    setForm({
-      ...selected,
-      blocks: [...selected.blocks]
-    });
-
-    setEditorOpen(true);
-  };
+      setEditorOpen(true);
+    };
 
   return (
-    <main className={selected ? "page detailMode" : "page"}>
+    <main
+      className={
+        selected
+          ? "page detailMode"
+          : "page"
+      }
+    >
       <header className="top">
         {!selected ? (
           <div className="viewSwitch">
             <button
-              className={view === "timeline" ? "active" : ""}
-              onClick={() => setView("timeline")}
+              onClick={() =>
+                setView(
+                  "timeline"
+                )
+              }
             >
               timeline
             </button>
 
             <button
-              className={view === "archive" ? "active" : ""}
-              onClick={() => setView("archive")}
+              onClick={() =>
+                setView(
+                  "archive"
+                )
+              }
             >
               archive
             </button>
 
             <button
-              className={view === "drawings" ? "active" : ""}
-              onClick={() => setView("drawings")}
+              onClick={() =>
+                setView(
+                  "drawings"
+                )
+              }
             >
               drawings
             </button>
 
             <button
-              className={view === "photos" ? "active" : ""}
-              onClick={() => setView("photos")}
+              onClick={() =>
+                setView(
+                  "photos"
+                )
+              }
             >
               photos
             </button>
           </div>
         ) : (
-          <button className="backTop" onClick={() => setSelectedId("")}>
+          <button
+            onClick={() =>
+              setSelectedId(
+                ""
+              )
+            }
+          >
             back
           </button>
         )}
 
-        <div className="logo">void</div>
+        <div className="logo">
+          void
+        </div>
 
-        {selected ? (
-          <button onClick={editCurrent}>edit</button>
-        ) : (
-          <button onClick={createNew}>add</button>
-        )}
+        <button
+          onClick={
+            createNew
+          }
+        >
+          add
+        </button>
       </header>
 
-      {!selected && view === "timeline" && (
-        <>
-          <section
-            className="gallery"
-            ref={galleryRef}
-            onPointerDown={onGalleryPointerDown}
-            onPointerMove={onGalleryPointerMove}
-            onPointerUp={onGalleryPointerUp}
-            onPointerCancel={onGalleryPointerUp}
-            onPointerLeave={onGalleryPointerUp}
-          >
-            {sortedEntries.map((entry) => (
-              <article
-                key={entry.id}
-                className="timelineItem"
-                onClick={() => {
-                  if (!dragRef.current.moved) {
-                    setSelectedId(entry.id);
+      {view ===
+        "drawings" &&
+        !selected && (
+          <section className="gridGallery">
+            {drawingItems.map(
+              (
+                item,
+                index
+              ) => (
+                <article
+                  key={
+                    index
                   }
-                }}
-              >
-                <div className="card">
-                  {entry.thumbnail ? (
-                    <img src={entry.thumbnail} alt="" />
-                  ) : (
-                    <div className="placeholder" />
-                  )}
-                </div>
-              </article>
-            ))}
-          </section>
-
-          <div
-            className="scrollSpace"
-            style={{
-              height: `${Math.max(sortedEntries.length * 900, 2200)}px`
-            }}
-          />
-        </>
-      )}
-
-      {!selected && view === "archive" && (
-        <section className="gridGallery">
-          {sortedEntries.map((entry) => (
-            <article
-              key={entry.id}
-              className="gridCard"
-              onClick={() => setSelectedId(entry.id)}
-            >
-              <div className="gridImage">
-                {entry.thumbnail ? (
-                  <img src={entry.thumbnail} alt="" />
-                ) : (
-                  <div className="placeholder" />
-                )}
-              </div>
-
-              <div className="gridMeta">
-                <p>{entry.title}</p>
-                <span>{formatDate(entry.date)}</span>
-              </div>
-            </article>
-          ))}
-        </section>
-      )}
-
-      {!selected && view === "drawings" && (
-        <section className="gridGallery">
-          {drawingItems.map((item, index) => (
-            <article
-              key={`${item.entryId}-drawing-${index}`}
-              className="gridCard"
-              onClick={() => setSelectedId(item.entryId)}
-            >
-              <div className="gridImage">
-                <img src={item.image} alt="" />
-              </div>
-
-              <div className="gridMeta">
-                <p>{item.title}</p>
-                <span>{formatDate(item.date)}</span>
-              </div>
-            </article>
-          ))}
-        </section>
-      )}
-
-      {!selected && view === "photos" && (
-        <section className="gridGallery">
-          {photoItems.map((item, index) => (
-            <article
-              key={`${item.entryId}-photo-${index}`}
-              className="gridCard"
-              onClick={() => setSelectedId(item.entryId)}
-            >
-              <div className="gridImage">
-                <img src={item.image} alt="" />
-              </div>
-
-              <div className="gridMeta">
-                <p>{item.title}</p>
-                <span>{formatDate(item.date)}</span>
-              </div>
-            </article>
-          ))}
-        </section>
-      )}
-
-      {selected && (
-        <section className="detail">
-          <div className="detailNav">
-            <button
-              disabled={!prevEntry}
-              onClick={() => prevEntry && setSelectedId(prevEntry.id)}
-            >
-              prev
-            </button>
-
-            <button
-              disabled={!nextEntry}
-              onClick={() => nextEntry && setSelectedId(nextEntry.id)}
-            >
-              next
-            </button>
-          </div>
-
-          <div className="detailHero">
-            {selected.thumbnail ? (
-              <img src={selected.thumbnail} alt="" />
-            ) : (
-              <div className="placeholder" />
+                  className="gridCard"
+                  onClick={() =>
+                    setSelectedId(
+                      item.entryId
+                    )
+                  }
+                >
+                  <div className="gridImage">
+                    <img
+                      src={
+                        item.image
+                      }
+                      alt=""
+                    />
+                  </div>
+                </article>
+              )
             )}
-          </div>
+          </section>
+        )}
 
-          <div className="detailMeta">
-            <p className="date">{formatDate(selected.date)}</p>
-            <h1>{selected.title}</h1>
-            <p className="tag">#{selected.tag}</p>
-          </div>
-
-          {selected.blocks.map((block) => {
-            if (block.type === "text") {
-              return (
-                <p key={block.id} className="bodyText">
-                  {block.content}
-                </p>
-              );
-            }
-
-            return (
-              <img
-                key={block.id}
-                src={block.content}
-                alt=""
-                className={
-                  block.type === "drawing"
-                    ? "contentImage drawingImage"
-                    : "contentImage"
-                }
-              />
-            );
-          })}
-        </section>
-      )}
+      {view ===
+        "photos" &&
+        !selected && (
+          <section className="gridGallery">
+            {photoItems.map(
+              (
+                item,
+                index
+              ) => (
+                <article
+                  key={
+                    index
+                  }
+                  className="gridCard"
+                  onClick={() =>
+                    setSelectedId(
+                      item.entryId
+                    )
+                  }
+                >
+                  <div className="gridImage">
+                    <img
+                      src={
+                        item.image
+                      }
+                      alt=""
+                    />
+                  </div>
+                </article>
+              )
+            )}
+          </section>
+        )}
 
       {editorOpen && (
         <section className="editor">
-          <button onClick={() => setEditorOpen(false)}>close</button>
-
-          <input
-            type="datetime-local"
-            value={form.date}
-            onChange={(event) =>
-              setForm({
-                ...form,
-                date: event.target.value
-              })
-            }
-          />
-
-          <input
-            placeholder="title"
-            value={form.title}
-            onChange={(event) =>
-              setForm({
-                ...form,
-                title: event.target.value
-              })
-            }
-          />
-
-          <input
-            placeholder="tag"
-            value={form.tag}
-            onChange={(event) =>
-              setForm({
-                ...form,
-                tag: event.target.value
-              })
-            }
-          />
-
           <label>
             thumbnail
+
             <input
               type="file"
               accept="image/*"
-              onChange={(event) => uploadThumbnail(event.target.files?.[0])}
+              onChange={(
+                e
+              ) =>
+                uploadThumbnail(
+                  e.target
+                    .files?.[0]
+                )
+              }
             />
           </label>
 
-          {form.thumbnail && (
-            <img className="editorPreview" src={form.thumbnail} alt="" />
-          )}
+          <select
+            value={
+              form.thumbnailType
+            }
+            onChange={(
+              e
+            ) =>
+              setForm({
+                ...form,
+                thumbnailType:
+                  e.target
+                    .value as
+                    | "photo"
+                    | "drawing"
+              })
+            }
+          >
+            <option value="photo">
+              photo
+            </option>
+
+            <option value="drawing">
+              drawing
+            </option>
+          </select>
 
           <div className="blockButtons">
-            <button onClick={() => addBlock("text")}>+ text</button>
-            <button onClick={() => addBlock("image")}>+ image</button>
-            <button onClick={() => addBlock("drawing")}>+ drawing</button>
+            <button
+              onClick={() =>
+                addBlock(
+                  "text"
+                )
+              }
+            >
+              + text
+            </button>
+
+            <button
+              onClick={() =>
+                addBlock(
+                  "image"
+                )
+              }
+            >
+              + image
+            </button>
+
+            <button
+              onClick={() =>
+                addBlock(
+                  "drawing"
+                )
+              }
+            >
+              + drawing
+            </button>
           </div>
 
-          {form.blocks.map((block, index) => (
-            <div className="editorBlock" key={block.id}>
-              <div className="blockHeader">
-                <span>
-                  {index + 1}. {block.type}
-                </span>
-
-                <div>
-                  <button onClick={() => moveBlock(block.id, "up")}>↑</button>
-                  <button onClick={() => moveBlock(block.id, "down")}>↓</button>
-                </div>
-              </div>
-
-              {block.type === "text" ? (
-                <textarea
-                  value={block.content}
-                  onChange={(event) =>
-                    updateBlockText(block.id, event.target.value)
-                  }
-                />
-              ) : (
-                <>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(event) =>
-                      event.target.files?.[0] &&
-                      uploadBlockImage(event.target.files[0], block.id)
-                    }
-                  />
-
-                  {block.content && (
-                    <img className="editorPreview" src={block.content} alt="" />
-                  )}
-                </>
-              )}
-
-              <button
-                className="removeBlock"
-                onClick={() => removeBlock(block.id)}
-              >
-                remove
-              </button>
-            </div>
-          ))}
-
-          <button className="save" onClick={saveEntry}>
+          <button
+            className="save"
+            onClick={
+              saveEntry
+            }
+          >
             save
           </button>
-
-          {selected && (
-            <button className="delete" onClick={deleteEntry}>
-              delete
-            </button>
-          )}
         </section>
       )}
     </main>
