@@ -5,11 +5,13 @@ import { supabase } from "../lib/supabase";
 
 type ViewMode = "timeline" | "archive" | "drawings" | "photos";
 type BlockType = "text" | "image" | "drawing";
+type Tone = "color" | "mono";
 
 type Block = {
   id: string;
   type: BlockType;
   content: string;
+  tone?: Tone;
 };
 
 type Entry = {
@@ -19,6 +21,7 @@ type Entry = {
   tag: string;
   thumbnail?: string;
   thumbnailType?: "photo" | "drawing";
+  thumbnailTone?: Tone;
   blocks: Block[];
 };
 
@@ -32,6 +35,10 @@ const getNowForInput = () => {
 const formatDate = (value: string) => {
   if (!value) return "";
   return value.replace("T", " ");
+};
+
+const toneClass = (tone?: Tone) => {
+  return tone === "mono" ? "imageMono" : "";
 };
 
 export default function Home() {
@@ -59,6 +66,7 @@ export default function Home() {
     tag: "",
     thumbnail: "",
     thumbnailType: "photo",
+    thumbnailTone: "color",
     blocks: []
   });
 
@@ -72,17 +80,16 @@ export default function Home() {
         .filter((block) => block.type === "drawing" && block.content)
         .map((block) => ({
           image: block.content,
+          tone: block.tone ?? "color",
           entryId: entry.id,
           title: entry.title,
           date: entry.date
         }));
 
-      if (
-        entry.thumbnail &&
-        (entry.thumbnailType ?? "photo") === "drawing"
-      ) {
+      if (entry.thumbnail && (entry.thumbnailType ?? "photo") === "drawing") {
         items.unshift({
           image: entry.thumbnail,
+          tone: entry.thumbnailTone ?? "color",
           entryId: entry.id,
           title: entry.title,
           date: entry.date
@@ -99,17 +106,16 @@ export default function Home() {
         .filter((block) => block.type === "image" && block.content)
         .map((block) => ({
           image: block.content,
+          tone: block.tone ?? "color",
           entryId: entry.id,
           title: entry.title,
           date: entry.date
         }));
 
-      if (
-        entry.thumbnail &&
-        (entry.thumbnailType ?? "photo") === "photo"
-      ) {
+      if (entry.thumbnail && (entry.thumbnailType ?? "photo") === "photo") {
         items.unshift({
           image: entry.thumbnail,
+          tone: entry.thumbnailTone ?? "color",
           entryId: entry.id,
           title: entry.title,
           date: entry.date
@@ -285,6 +291,7 @@ export default function Home() {
       tag: entry.tag,
       thumbnail: entry.thumbnail,
       thumbnailType: entry.thumbnailType ?? "photo",
+      thumbnailTone: entry.thumbnailTone ?? "color",
       blocks: entry.blocks
     });
 
@@ -305,7 +312,8 @@ export default function Home() {
         {
           id: crypto.randomUUID(),
           type,
-          content: ""
+          content: "",
+          tone: "color"
         }
       ]
     }));
@@ -316,6 +324,15 @@ export default function Home() {
       ...prev,
       blocks: prev.blocks.map((block) =>
         block.id === blockId ? { ...block, content } : block
+      )
+    }));
+  };
+
+  const updateBlockTone = (blockId: string, tone: Tone) => {
+    setForm((prev) => ({
+      ...prev,
+      blocks: prev.blocks.map((block) =>
+        block.id === blockId ? { ...block, tone } : block
       )
     }));
   };
@@ -356,7 +373,12 @@ export default function Home() {
       ...form,
       id,
       date: form.date || getNowForInput(),
-      thumbnailType: form.thumbnailType ?? "photo"
+      thumbnailType: form.thumbnailType ?? "photo",
+      thumbnailTone: form.thumbnailTone ?? "color",
+      blocks: form.blocks.map((block) => ({
+        ...block,
+        tone: block.tone ?? "color"
+      }))
     };
 
     await saveEntryToSupabase(entry);
@@ -392,6 +414,7 @@ export default function Home() {
       tag: "",
       thumbnail: "",
       thumbnailType: "photo",
+      thumbnailTone: "color",
       blocks: []
     });
 
@@ -404,7 +427,11 @@ export default function Home() {
     setForm({
       ...selected,
       thumbnailType: selected.thumbnailType ?? "photo",
-      blocks: [...selected.blocks]
+      thumbnailTone: selected.thumbnailTone ?? "color",
+      blocks: selected.blocks.map((block) => ({
+        ...block,
+        tone: block.tone ?? "color"
+      }))
     });
 
     setEditorOpen(true);
@@ -481,7 +508,11 @@ export default function Home() {
               >
                 <div className="card">
                   {entry.thumbnail ? (
-                    <img src={entry.thumbnail} alt="" />
+                    <img
+                      src={entry.thumbnail}
+                      alt=""
+                      className={toneClass(entry.thumbnailTone)}
+                    />
                   ) : (
                     <div className="placeholder" />
                   )}
@@ -509,7 +540,11 @@ export default function Home() {
             >
               <div className="gridImage">
                 {entry.thumbnail ? (
-                  <img src={entry.thumbnail} alt="" />
+                  <img
+                    src={entry.thumbnail}
+                    alt=""
+                    className={toneClass(entry.thumbnailTone)}
+                  />
                 ) : (
                   <div className="placeholder" />
                 )}
@@ -533,7 +568,7 @@ export default function Home() {
               onClick={() => setSelectedId(item.entryId)}
             >
               <div className="gridImage">
-                <img src={item.image} alt="" />
+                <img src={item.image} alt="" className={toneClass(item.tone)} />
               </div>
 
               <div className="gridMeta">
@@ -554,7 +589,7 @@ export default function Home() {
               onClick={() => setSelectedId(item.entryId)}
             >
               <div className="gridImage">
-                <img src={item.image} alt="" />
+                <img src={item.image} alt="" className={toneClass(item.tone)} />
               </div>
 
               <div className="gridMeta">
@@ -586,7 +621,11 @@ export default function Home() {
 
           <div className="detailHero">
             {selected.thumbnail ? (
-              <img src={selected.thumbnail} alt="" />
+              <img
+                src={selected.thumbnail}
+                alt=""
+                className={toneClass(selected.thumbnailTone)}
+              />
             ) : (
               <div className="placeholder" />
             )}
@@ -612,11 +651,7 @@ export default function Home() {
                 key={block.id}
                 src={block.content}
                 alt=""
-                className={
-                  block.type === "drawing"
-                    ? "contentImage drawingImage"
-                    : "contentImage"
-                }
+                className={`${block.type === "drawing" ? "contentImage drawingImage" : "contentImage"} ${toneClass(block.tone)}`}
               />
             );
           })}
@@ -682,8 +717,25 @@ export default function Home() {
             <option value="drawing">drawing</option>
           </select>
 
+          <select
+            value={form.thumbnailTone ?? "color"}
+            onChange={(event) =>
+              setForm({
+                ...form,
+                thumbnailTone: event.target.value as Tone
+              })
+            }
+          >
+            <option value="color">color</option>
+            <option value="mono">mono</option>
+          </select>
+
           {form.thumbnail && (
-            <img className="editorPreview" src={form.thumbnail} alt="" />
+            <img
+              className={`editorPreview ${toneClass(form.thumbnailTone)}`}
+              src={form.thumbnail}
+              alt=""
+            />
           )}
 
           <div className="blockButtons">
@@ -723,8 +775,22 @@ export default function Home() {
                     }
                   />
 
+                  <select
+                    value={block.tone ?? "color"}
+                    onChange={(event) =>
+                      updateBlockTone(block.id, event.target.value as Tone)
+                    }
+                  >
+                    <option value="color">color</option>
+                    <option value="mono">mono</option>
+                  </select>
+
                   {block.content && (
-                    <img className="editorPreview" src={block.content} alt="" />
+                    <img
+                      className={`editorPreview ${toneClass(block.tone)}`}
+                      src={block.content}
+                      alt=""
+                    />
                   )}
                 </>
               )}
